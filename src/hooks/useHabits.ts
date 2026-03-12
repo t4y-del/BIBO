@@ -182,11 +182,21 @@ export function useHabits(date: Date = new Date()) {
         await fetchHabits();
     }, [fetchHabits]);
 
+    /* ── updateHabit ────────────────────────────────────── */
+    const updateHabit = useCallback(async (habitId: string, updates: Partial<Pick<Habit, 'name' | 'icon' | 'color' | 'frequency'>>) => {
+        const { error: err } = await supabase
+            .from('habits')
+            .update(updates)
+            .eq('id', habitId);
+        if (err) throw err;
+        setHabits((prev) => prev.map((h) => (h.id === habitId ? { ...h, ...updates } : h)));
+    }, []);
+
     /* ── Stats ───────────────────────────────────────────── */
     const stats: HabitStats = {
         totalActive: habits.length,
         completedToday: habits.filter((h) => !!h.log?.completed).length,
     };
 
-    return { habits, loading, error, refresh: fetchHabits, toggleHabit, deleteHabit, createHabit, stats };
+    return { habits, loading, error, refresh: fetchHabits, toggleHabit, deleteHabit, updateHabit, createHabit, stats };
 }

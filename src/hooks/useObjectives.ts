@@ -137,18 +137,26 @@ export function useObjectives(filter: 'all' | 'active' | 'completed' = 'all') {
             .eq('id', taskId);
         if (err) throw err;
 
-        // Optimistic update
-        setObjectives((prev) =>
-            prev.map((obj) => {
-                if (obj.id !== objectiveId) return obj;
-                const tasks = obj.tasks.map((t) =>
-                    t.id === taskId ? { ...t, completed: !currentlyDone } : t
-                );
-                const done = tasks.filter((t) => t.completed).length;
-                const progress = tasks.length > 0 ? Math.round((done / tasks.length) * 100) : 0;
-                return { ...obj, tasks, progress };
-            })
+        // Calculate new progress
+        const obj = objectives.find((o) => o.id === objectiveId);
+        if (!obj) return;
+        const tasks = obj.tasks.map((t) =>
+            t.id === taskId ? { ...t, completed: !currentlyDone } : t
         );
+        const done = tasks.filter((t) => t.completed).length;
+        const progress = tasks.length > 0 ? Math.round((done / tasks.length) * 100) : 0;
+
+        // Auto-update status when all tasks completed / uncompleted
+        const newStatus = progress === 100 ? 'completed' : 'active';
+        if (newStatus !== obj.status) {
+            await supabase
+                .from('objectives')
+                .update({ status: newStatus, updated_at: new Date().toISOString() })
+                .eq('id', objectiveId);
+        }
+
+        // Re-fetch to get correct filtered list
+        await fetchObjectives();
     };
 
     const deleteTask = async (taskId: string) => {

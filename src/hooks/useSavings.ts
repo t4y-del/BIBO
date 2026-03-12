@@ -77,11 +77,11 @@ export function useSavings(year: number = new Date().getFullYear()) {
         amount_ars: number;
         saved_at: string;
         note?: string;
-    }) => {
+    }): Promise<string> => {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error('No autenticado');
 
-        const { error } = await supabase
+        const { data, error } = await supabase
             .from('savings_entries')
             .upsert({
                 user_id: user.id,
@@ -90,11 +90,34 @@ export function useSavings(year: number = new Date().getFullYear()) {
                 amount_ars: params.amount_ars,
                 saved_at: params.saved_at,
                 note: params.note ?? null,
-            }, { onConflict: 'user_id,year,month' });
+            }, { onConflict: 'user_id,year,month' })
+            .select('id')
+            .single();
 
         if (error) throw error;
         await fetchAll();
+        return data.id;
     }, [year, fetchAll]);
+
+    /* ── updateEntry ──────────────────────────────────────── */
+    const updateEntry = useCallback(async (id: string, params: {
+        month: number;
+        amount_ars: number;
+        saved_at: string;
+        note?: string;
+    }) => {
+        const { error } = await supabase
+            .from('savings_entries')
+            .update({
+                month: params.month,
+                amount_ars: params.amount_ars,
+                saved_at: params.saved_at,
+                note: params.note ?? null,
+            })
+            .eq('id', id);
+        if (error) throw error;
+        await fetchAll();
+    }, [fetchAll]);
 
     /* ── deleteEntry ──────────────────────────────────────── */
     const deleteEntry = useCallback(async (id: string) => {
@@ -128,5 +151,5 @@ export function useSavings(year: number = new Date().getFullYear()) {
 
     const stats: SavingsStats = { totalArs, monthsOk, compliance, monthlyTarget };
 
-    return { entries, goal, stats, loading, error, refresh: fetchAll, addEntry, deleteEntry, saveGoal };
+    return { entries, goal, stats, loading, error, refresh: fetchAll, addEntry, updateEntry, deleteEntry, saveGoal };
 }

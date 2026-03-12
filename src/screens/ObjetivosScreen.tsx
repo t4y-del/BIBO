@@ -6,15 +6,19 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useObjectives, Objective, ObjectiveTask } from '../hooks/useObjectives';
 import AddObjectiveModal from '../components/AddObjectiveModal';
+import EditObjectiveModal from '../components/EditObjectiveModal';
+import SwipeableRow from '../components/SwipeableRow';
+import GlowBackground from '../components/GlowBackground';
 
 type FilterType = 'all' | 'active' | 'completed';
 
 export default function ObjetivosScreen() {
-    const [filter, setFilter] = useState<FilterType>('all');
-    const { objectives, loading, error, refresh, toggleTask, deleteObjective, addTask, stats } =
+    const [filter, setFilter] = useState<FilterType>('active');
+    const { objectives, loading, error, refresh, toggleTask, updateObjective, deleteObjective, addTask, stats } =
         useObjectives(filter);
     const [expandedId, setExpandedId] = useState<string | null>(null);
     const [showAddModal, setShowAddModal] = useState(false);
+    const [editingObjective, setEditingObjective] = useState<Objective | null>(null);
     const [refreshing, setRefreshing] = useState(false);
 
     const onRefresh = useCallback(async () => {
@@ -24,13 +28,13 @@ export default function ObjetivosScreen() {
     }, [refresh]);
 
     const FILTERS: { key: FilterType; label: string }[] = [
-        { key: 'all', label: 'Todos' },
         { key: 'active', label: 'En progreso' },
         { key: 'completed', label: 'Completados' },
+        { key: 'all', label: 'Todos' },
     ];
 
     return (
-        <View style={styles.container}>
+        <GlowBackground variant="objectives">
             <ScrollView
                 contentContainerStyle={styles.scroll}
                 showsVerticalScrollIndicator={false}
@@ -96,20 +100,29 @@ export default function ObjetivosScreen() {
 
                 {/* ── Objectives list ─────────────────────────── */}
                 {objectives.map((obj) => (
-                    <ObjectiveCard
+                    <SwipeableRow
                         key={obj.id}
-                        objective={obj}
-                        expanded={expandedId === obj.id}
-                        onExpand={() => setExpandedId(expandedId === obj.id ? null : obj.id)}
-                        onToggleTask={(taskId, done) => toggleTask(taskId, obj.id, done)}
                         onDelete={() => {
                             Alert.alert('Eliminar objetivo', `¿Eliminar "${obj.title}"?`, [
                                 { text: 'Cancelar', style: 'cancel' },
                                 { text: 'Eliminar', style: 'destructive', onPress: () => deleteObjective(obj.id) },
                             ]);
                         }}
-                        onAddTask={(text) => addTask(obj.id, text)}
-                    />
+                    >
+                        <ObjectiveCard
+                            objective={obj}
+                            expanded={expandedId === obj.id}
+                            onExpand={() => setExpandedId(expandedId === obj.id ? null : obj.id)}
+                            onEdit={() => setEditingObjective(obj)}
+                            onToggleTask={(taskId, done) => toggleTask(taskId, obj.id, done)}
+                            onToggleComplete={async () => {
+                                const newStatus = obj.status === 'completed' ? 'active' : 'completed';
+                                await updateObjective(obj.id, { status: newStatus });
+                                refresh();
+                            }}
+                            onAddTask={(text) => addTask(obj.id, text)}
+                        />
+                    </SwipeableRow>
                 ))}
 
                 <View style={{ height: 24 }} />
@@ -120,24 +133,37 @@ export default function ObjetivosScreen() {
                 onClose={() => setShowAddModal(false)}
                 onCreated={() => { setShowAddModal(false); refresh(); }}
             />
-        </View>
+            <EditObjectiveModal
+                visible={!!editingObjective}
+                objective={editingObjective}
+                onClose={() => setEditingObjective(null)}
+                onSave={async (id, updates) => {
+                    await updateObjective(id, updates);
+                    refresh();
+                }}
+            />
+        </GlowBackground>
     );
 }
 
 /* ── ObjectiveCard ──────────────────────────────────────── */
 
 function ObjectiveCard({
-    objective, expanded, onExpand, onToggleTask, onDelete, onAddTask,
+    objective, expanded, onExpand, onEdit, onToggleTask, onToggleComplete, onAddTask,
 }: {
     objective: Objective;
     expanded: boolean;
     onExpand: () => void;
+    onEdit: () => void;
     onToggleTask: (taskId: string, currentlyDone: boolean) => void;
-    onDelete: () => void;
+    onToggleComplete: () => void;
     onAddTask: (text: string) => Promise<void>;
 }) {
     const [newTask, setNewTask] = useState('');
     const [addingTask, setAddingTask] = useState(false);
+    const isCompleted = objective.status === 'completed';
+    const hasTasks = objective.tasks.length > 0;
+    const effectiveProgress = isCompleted ? 100 : objective.progress;
 
     const handleAddTask = async () => {
         if (!newTask.trim()) return;
@@ -156,7 +182,7 @@ function ObjectiveCard({
 
     return (
         <View style={[styles.card, { borderLeftColor: objective.color, borderLeftWidth: 3 }]}>
-            {/* Card header */}
+            {/* Card header — tap to expand/collapse */}
             <TouchableOpacity style={styles.cardHeader} onPress={onExpand} activeOpacity={0.7}>
                 <View style={[styles.cardIconWrap, { backgroundColor: objective.color + '22' }]}>
                     <Text style={styles.cardIcon}>{objective.icon}</Text>
@@ -172,25 +198,46 @@ function ObjectiveCard({
                                 </Text>
                             </View>
                         )}
-                        <View style={styles.badge}>
-                            <Ionicons name="checkmark-circle-outline" size={10} color="#8E8E93" />
-                            <Text style={styles.badgeText}>
-                                {objective.tasks.filter((t) => t.completed).length}/{objective.tasks.length} tareas
-                            </Text>
-                        </View>
+                        {hasTasks && (
+                            <View style={styles.badge}>
+                                <Ionicons name="checkmark-circle-outline" size={10} color="#8E8E93" />
+                                <Text style={styles.badgeText}>
+                                    {objective.tasks.filter((t) => t.completed).length}/{objective.tasks.length} subtareas
+                                </Text>
+                            </View>
+                        )}
                     </View>
                 </View>
-                <TouchableOpacity onPress={onDelete} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                    <Ionicons name="trash-outline" size={16} color="#8E8E93" />
+                <TouchableOpacity onPress={onEdit} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                    <Ionicons name="create-outline" size={16} color="#8E8E93" />
                 </TouchableOpacity>
                 <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={18} color="#8E8E93" />
             </TouchableOpacity>
 
             {/* Progress bar */}
             <View style={styles.progressTrack}>
-                <View style={[styles.progressFill, { width: `${objective.progress}%` as any, backgroundColor: objective.color }]} />
+                <View style={[styles.progressFill, { width: `${effectiveProgress}%` as any, backgroundColor: objective.color }]} />
             </View>
-            <Text style={styles.progressLabel}>{objective.progress}% completado</Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4, marginBottom: 4 }}>
+                <Text style={styles.progressLabel}>{effectiveProgress}% completado</Text>
+                <TouchableOpacity
+                    onPress={onToggleComplete}
+                    style={{
+                        flexDirection: 'row', alignItems: 'center', gap: 4,
+                        backgroundColor: isCompleted ? '#2AC9A020' : objective.color + '20',
+                        paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8,
+                    }}
+                >
+                    <Ionicons
+                        name={isCompleted ? 'refresh-outline' : 'checkmark-circle-outline'}
+                        size={14}
+                        color={isCompleted ? '#2AC9A0' : objective.color}
+                    />
+                    <Text style={{ fontSize: 11, fontWeight: '600', color: isCompleted ? '#2AC9A0' : objective.color }}>
+                        {isCompleted ? 'Reabrir' : 'Completar'}
+                    </Text>
+                </TouchableOpacity>
+            </View>
 
             {/* Expanded tasks */}
             {expanded && (

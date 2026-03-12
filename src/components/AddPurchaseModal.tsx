@@ -34,6 +34,7 @@ export default function AddPurchaseModal({
     currentPriceArs,
     onClose,
     onSave,
+    editPurchase,
 }: {
     visible: boolean;
     currentPriceUsd: number | null;
@@ -48,7 +49,10 @@ export default function AddPurchaseModal({
         total_ars?: number;
         note?: string;
     }) => Promise<void>;
+    editPurchase?: BtcPurchase | null;
 }) {
+    const isEditing = !!editPurchase;
+
     const [currency, setCurrency] = useState<Currency>('ARS');
     const [priceUsd, setPriceUsd] = useState('');
     const [totalPaid, setTotalPaid] = useState('');
@@ -58,12 +62,36 @@ export default function AddPurchaseModal({
     const [loading, setLoading] = useState(false);
     const [userEditedBtc, setUserEditedBtc] = useState(false);
 
-    // Pre-fill price when modal opens or live price updates
+    // Pre-fill when editing or when modal opens fresh
     useEffect(() => {
-        if (visible && currentPriceUsd && !priceUsd) {
-            setPriceUsd(String(Math.round(currentPriceUsd)));
+        if (!visible) return;
+
+        if (editPurchase) {
+            // Pre-fill all fields from existing purchase
+            setCurrency((editPurchase.currency === 'USDT' ? 'USD' : editPurchase.currency) as Currency);
+            setPriceUsd(String(Math.round(Number(editPurchase.price_usd))));
+            setBtcAmount(String(Number(editPurchase.btc_amount)));
+            setDate(editPurchase.bought_at);
+            setNote(editPurchase.note ?? '');
+            setUserEditedBtc(true); // Don't auto-calc, user values take priority
+
+            // Pre-fill total paid based on currency
+            if (editPurchase.currency === 'ARS' && editPurchase.total_ars) {
+                setTotalPaid(String(Math.round(Number(editPurchase.total_ars))));
+            } else if (editPurchase.currency === 'USD' && editPurchase.total_usd) {
+                setTotalPaid(String(Number(editPurchase.total_usd)));
+            } else if (editPurchase.currency === 'USDT' && editPurchase.total_usdt) {
+                setTotalPaid(String(Number(editPurchase.total_usdt)));
+            } else {
+                setTotalPaid('');
+            }
+        } else {
+            // New purchase — pre-fill price if available
+            if (currentPriceUsd && !priceUsd) {
+                setPriceUsd(String(Math.round(currentPriceUsd)));
+            }
         }
-    }, [visible, currentPriceUsd]);
+    }, [visible, editPurchase]);
 
     // Auto-calculate BTC whenever price or total changes (only if user hasn't edited it manually)
     useEffect(() => {
@@ -99,9 +127,6 @@ export default function AddPurchaseModal({
     const currInfo = CURRENCY_OPTIONS.find((c) => c.key === currency)!;
 
     const handleSave = async () => {
-        const price = parseFloat(priceUsd.replace(/[,\.]/g, (m, i, s) =>
-            s.indexOf(',') !== -1 && m === ',' ? '.' : m === '.' && s.indexOf(',') === -1 ? '' : ''
-        ));
         const priceVal = parseFloat(priceUsd.replace(/\./g, '').replace(',', '.'));
         const totalVal = parseFloat(totalPaid.replace(/\./g, '').replace(',', '.'));
         const btcVal = parseFloat(btcAmount.replace(',', '.'));
@@ -146,9 +171,11 @@ export default function AddPurchaseModal({
                 <View style={styles.sheet}>
                     <View style={styles.handle} />
                     <View style={styles.titleRow}>
-                        <Text style={styles.sheetTitle}>Registrar compra BTC</Text>
+                        <Text style={styles.sheetTitle}>
+                            {isEditing ? 'Editar compra BTC' : 'Registrar compra BTC'}
+                        </Text>
                         <TouchableOpacity onPress={onClose}>
-                            <Ionicons name="close" size={22} color="#8E8E93" />
+                            <Ionicons name="close" size={22} color="#7A7A9A" />
                         </TouchableOpacity>
                     </View>
 
@@ -237,7 +264,7 @@ export default function AddPurchaseModal({
                         {/* ── Fecha ──────────────────────────────────────── */}
                         <Text style={styles.label}>FECHA (YYYY-MM-DD)</Text>
                         <View style={styles.inputWrap}>
-                            <Ionicons name="calendar-outline" size={18} color="#8E8E93" />
+                            <Ionicons name="calendar-outline" size={18} color="#7A7A9A" />
                             <TextInput
                                 style={styles.input}
                                 value={date}
@@ -272,7 +299,9 @@ export default function AddPurchaseModal({
                             >
                                 {loading
                                     ? <ActivityIndicator color="#FFF" size="small" />
-                                    : <Text style={styles.saveText}>Guardar compra</Text>}
+                                    : <Text style={styles.saveText}>
+                                        {isEditing ? 'Guardar cambios' : 'Guardar compra'}
+                                    </Text>}
                             </TouchableOpacity>
                         </View>
                         <View style={{ height: 12 }} />
@@ -287,33 +316,33 @@ const styles = StyleSheet.create({
     overlay: { flex: 1, justifyContent: 'flex-end' },
     backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.65)' },
     sheet: {
-        backgroundColor: '#FFFFFF', borderTopLeftRadius: 28, borderTopRightRadius: 28,
+        backgroundColor: '#12122A', borderTopLeftRadius: 28, borderTopRightRadius: 28,
         padding: 24, paddingBottom: 32, maxHeight: '92%',
-        borderTopWidth: 1, borderColor: 'rgba(60,60,67,0.12)',
+        borderTopWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
     },
     handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: '#2A2A4A', alignSelf: 'center', marginBottom: 20 },
     titleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
-    sheetTitle: { fontSize: 20, fontWeight: '800', color: '#1C1C1E' },
+    sheetTitle: { fontSize: 20, fontWeight: '800', color: '#FFF' },
 
-    label: { fontSize: 11, fontWeight: '700', color: '#6A6A8A', letterSpacing: 1, marginBottom: 8 },
+    label: { fontSize: 11, fontWeight: '700', color: '#7A7A9A', letterSpacing: 1, marginBottom: 8 },
 
     currencyRow: { flexDirection: 'row', gap: 12, marginBottom: 20 },
     currencyBtn: {
         flex: 1, paddingVertical: 14, borderRadius: 14, borderWidth: 1.5,
-        borderColor: 'rgba(255,255,255,0.08)', backgroundColor: '#E5E5EA',
+        borderColor: 'rgba(255,255,255,0.08)', backgroundColor: '#14142A',
         alignItems: 'center', gap: 6,
     },
     currencyIcon: { fontSize: 22 },
-    currencyLabel: { fontSize: 13, fontWeight: '600', color: '#8E8E93' },
+    currencyLabel: { fontSize: 13, fontWeight: '600', color: '#7A7A9A' },
 
     inputWrap: {
-        flexDirection: 'row', alignItems: 'center', backgroundColor: '#E5E5EA',
+        flexDirection: 'row', alignItems: 'center', backgroundColor: '#14142A',
         borderRadius: 14, paddingHorizontal: 14, height: 52, gap: 10, marginBottom: 16,
-        borderWidth: 1.5, borderColor: 'rgba(60,60,67,0.12)',
+        borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.06)',
     },
-    input: { flex: 1, color: '#1C1C1E', fontSize: 15 },
-    inputPrefix: { fontSize: 16, color: '#8E8E93', fontWeight: '700' },
-    inputSuffix: { fontSize: 12, color: '#8E8E93', fontWeight: '600' },
+    input: { flex: 1, color: '#FFF', fontSize: 15 },
+    inputPrefix: { fontSize: 16, color: '#7A7A9A', fontWeight: '700' },
+    inputSuffix: { fontSize: 12, color: '#7A7A9A', fontWeight: '600' },
 
     btcLabelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
     autoCalcBadge: { fontSize: 11, color: '#26A17B', fontWeight: '600' },
@@ -322,7 +351,7 @@ const styles = StyleSheet.create({
 
     btnRow: { flexDirection: 'row', gap: 12, marginTop: 8 },
     cancelBtn: { flex: 1, height: 52, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', justifyContent: 'center', alignItems: 'center' },
-    cancelText: { color: '#8E8E93', fontWeight: '600', fontSize: 15 },
+    cancelText: { color: '#7A7A9A', fontWeight: '600', fontSize: 15 },
     saveBtn: { flex: 2, height: 52, borderRadius: 14, backgroundColor: '#F7931A', justifyContent: 'center', alignItems: 'center' },
-    saveText: { color: '#1C1C1E', fontWeight: '800', fontSize: 15 },
+    saveText: { color: '#FFF', fontWeight: '800', fontSize: 15 },
 });

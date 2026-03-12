@@ -6,6 +6,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useAgenda } from '../hooks/useAgenda';
 import AddEventModal from '../components/AddEventModal';
+import GlowBackground from '../components/GlowBackground';
 
 const { width } = Dimensions.get('window');
 const DAY_SIZE = Math.floor((width - 36 - 6 * 6) / 7);
@@ -62,7 +63,7 @@ export default function AgendaScreen() {
     const hasEvents = (agenda?.events.length ?? 0) > 0;
 
     return (
-        <View style={styles.container}>
+        <GlowBackground variant="agenda">
             <ScrollView
                 contentContainerStyle={styles.scroll}
                 showsVerticalScrollIndicator={false}
@@ -272,7 +273,7 @@ export default function AgendaScreen() {
                 onClose={() => setShowAddModal(false)}
                 onCreated={() => setShowAddModal(false)}
             />
-        </View>
+        </GlowBackground>
     );
 }
 

@@ -4,6 +4,7 @@ import {
     Dimensions, RefreshControl, ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import GlowBackground from '../components/GlowBackground';
 import { useProfile } from '../hooks/useProfile';
 import { useHabits } from '../hooks/useHabits';
 import { useObjectives } from '../hooks/useObjectives';
@@ -46,202 +47,203 @@ export default function HomeScreen({ onNavigate }: Props) {
         : 0;
 
     return (
-        <ScrollView
-            style={styles.container}
-            contentContainerStyle={styles.scroll}
-            showsVerticalScrollIndicator={false}
-            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#6C63FF" />}
-        >
-            {/* ── Header ────────────────────────────────── */}
-            <View style={styles.header}>
-                <View style={{ flex: 1 }}>
-                    <Text style={styles.dateText}>{capitalDate}</Text>
-                    <Text style={styles.greeting}>Hola, {firstName} 👋</Text>
-                    <Text style={styles.subGreet}>Mercado crypto</Text>
+        <GlowBackground>
+            <ScrollView
+                contentContainerStyle={styles.scroll}
+                showsVerticalScrollIndicator={false}
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#6C63FF" />}
+            >
+                {/* ── Header ────────────────────────────────── */}
+                <View style={styles.header}>
+                    <View style={{ flex: 1 }}>
+                        <Text style={styles.dateText}>{capitalDate}</Text>
+                        <Text style={styles.greeting}>Hola, {firstName} 👋</Text>
+                        <Text style={styles.subGreet}>Mercado crypto</Text>
+                    </View>
+                    <TouchableOpacity
+                        style={styles.avatar}
+                        onPress={() => onNavigate?.('Profile')}
+                        activeOpacity={0.8}
+                    >
+                        <Text style={styles.avatarEmoji}>😎</Text>
+                    </TouchableOpacity>
                 </View>
-                <TouchableOpacity
-                    style={styles.avatar}
-                    onPress={() => onNavigate?.('Profile')}
-                    activeOpacity={0.8}
-                >
-                    <Text style={styles.avatarEmoji}>😎</Text>
-                </TouchableOpacity>
-            </View>
 
-            {/* ── Crypto cards (static until Finanzas API) ── */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.cryptoScroll}>
-                <View style={styles.cryptoRow}>
-                    {CRYPTO.map((c) => (
-                        <View key={c.label} style={styles.cryptoCard}>
-                            <View style={[styles.cryptoIconWrap, { backgroundColor: c.color + '22' }]}>
-                                <Ionicons name={c.icon} size={20} color={c.color} />
+                {/* ── Crypto cards (static until Finanzas API) ── */}
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.cryptoScroll}>
+                    <View style={styles.cryptoRow}>
+                        {CRYPTO.map((c) => (
+                            <View key={c.label} style={styles.cryptoCard}>
+                                <View style={[styles.cryptoIconWrap, { backgroundColor: c.color + '22' }]}>
+                                    <Ionicons name={c.icon} size={20} color={c.color} />
+                                </View>
+                                <Text style={styles.cryptoLabel}>{c.label}</Text>
+                                <Text style={styles.cryptoPrice}>{c.price}</Text>
+                                <Text style={[styles.cryptoChange, { color: c.up ? '#4CAF50' : '#FF5252' }]}>
+                                    {c.up ? '▲' : '▼'} {c.change}
+                                </Text>
                             </View>
-                            <Text style={styles.cryptoLabel}>{c.label}</Text>
-                            <Text style={styles.cryptoPrice}>{c.price}</Text>
-                            <Text style={[styles.cryptoChange, { color: c.up ? '#4CAF50' : '#FF5252' }]}>
-                                {c.up ? '▲' : '▼'} {c.change}
+                        ))}
+                    </View>
+                </ScrollView>
+
+                {/* ── Stats grid ─────────────────────────────── */}
+                <View style={styles.sectionRow}>
+                    <Text style={styles.sectionTitle}>Resumen</Text>
+                </View>
+                <View style={styles.grid}>
+                    <StatCard
+                        icon="trophy-outline" color="#F7931A"
+                        label="Objetivos activos"
+                        value={objLoading ? '…' : String(stats.activeObjectives)}
+                    />
+                    <StatCard
+                        icon="flame-outline" color="#FF5252"
+                        label="Hábitos hoy"
+                        value={habitsLoading ? '…' : `${stats.habitsCompletedToday}/${stats.totalHabitsToday}`}
+                    />
+                    <StatCard
+                        icon="checkmark-circle-outline" color="#4CAF50"
+                        label="% completado"
+                        value={habitsLoading ? '…' : `${habitPct}%`}
+                    />
+                    <StatCard
+                        icon="calendar-outline" color="#6C63FF"
+                        label="Nivel"
+                        value={profile ? `Nv. ${profile.nivel}` : '…'}
+                    />
+                </View>
+
+                {/* ── Habits today ───────────────────────────── */}
+                <View style={styles.sectionRow}>
+                    <Text style={styles.sectionTitle}>Hábitos hoy</Text>
+                    <TouchableOpacity onPress={() => onNavigate?.('Hábitos')}>
+                        <Text style={styles.sectionLink}>Ver todos →</Text>
+                    </TouchableOpacity>
+                </View>
+
+                {habitsLoading && !refreshing && (
+                    <ActivityIndicator color="#6C63FF" style={{ marginVertical: 12 }} />
+                )}
+
+                {!habitsLoading && habits.length === 0 && (
+                    <View style={styles.emptyCard}>
+                        <Text style={styles.emptyText}>Sin hábitos creados aún</Text>
+                        <TouchableOpacity onPress={() => onNavigate?.('Hábitos')}>
+                            <Text style={styles.emptyLink}>Crear uno →</Text>
+                        </TouchableOpacity>
+                    </View>
+                )}
+
+                {habits.slice(0, 4).map((habit) => {
+                    const done = !!habit.log?.completed;
+                    return (
+                        <TouchableOpacity
+                            key={habit.id}
+                            style={styles.habitRow}
+                            onPress={() => toggleHabit(habit.id, done)}
+                            activeOpacity={0.7}
+                        >
+                            <View style={[styles.habitIcon, { backgroundColor: habit.color + '22' }]}>
+                                <Text style={{ fontSize: 18 }}>{habit.icon}</Text>
+                            </View>
+                            <View style={styles.habitInfo}>
+                                <Text style={[styles.habitName, done && styles.doneName]}>{habit.name}</Text>
+                                <Text style={styles.habitStreak}>🔥 {habit.streak} días</Text>
+                            </View>
+                            <View style={[styles.habitCheck, done && { backgroundColor: habit.color, borderColor: habit.color }]}>
+                                {done && <Ionicons name="checkmark" size={14} color="#FFF" />}
+                            </View>
+                        </TouchableOpacity>
+                    );
+                })}
+
+                {habits.length > 4 && (
+                    <TouchableOpacity style={styles.showMoreBtn} onPress={() => onNavigate?.('Hábitos')}>
+                        <Text style={styles.showMoreText}>Ver {habits.length - 4} más →</Text>
+                    </TouchableOpacity>
+                )}
+
+                {/* ── Próximos Eventos ───────────────────────── */}
+                <View style={styles.sectionRow}>
+                    <Text style={styles.sectionTitle}>Próximos eventos</Text>
+                    <TouchableOpacity onPress={() => onNavigate?.('Agenda')}>
+                        <Text style={styles.sectionLink}>Ver agenda →</Text>
+                    </TouchableOpacity>
+                </View>
+
+                {upcomingEvents.length === 0 && (
+                    <View style={styles.emptyCard}>
+                        <Text style={styles.emptyText}>Sin eventos próximos</Text>
+                        <TouchableOpacity onPress={() => onNavigate?.('Agenda')}>
+                            <Text style={styles.emptyLink}>Agregar →</Text>
+                        </TouchableOpacity>
+                    </View>
+                )}
+
+                {upcomingEvents.map((evt) => (
+                    <View key={evt.id} style={[styles.evtCard, { borderLeftColor: evt.color }]}>
+                        <View style={[styles.evtIconWrap, { backgroundColor: evt.color + '22' }]}>
+                            <Text style={styles.evtTypeIcon}>
+                                {evt.type === 'reminder' ? '🔔' : evt.type === 'milestone' ? '🏁' : '📅'}
                             </Text>
                         </View>
-                    ))}
-                </View>
-            </ScrollView>
-
-            {/* ── Stats grid ─────────────────────────────── */}
-            <View style={styles.sectionRow}>
-                <Text style={styles.sectionTitle}>Resumen</Text>
-            </View>
-            <View style={styles.grid}>
-                <StatCard
-                    icon="trophy-outline" color="#F7931A"
-                    label="Objetivos activos"
-                    value={objLoading ? '…' : String(stats.activeObjectives)}
-                />
-                <StatCard
-                    icon="flame-outline" color="#FF5252"
-                    label="Hábitos hoy"
-                    value={habitsLoading ? '…' : `${stats.habitsCompletedToday}/${stats.totalHabitsToday}`}
-                />
-                <StatCard
-                    icon="checkmark-circle-outline" color="#4CAF50"
-                    label="% completado"
-                    value={habitsLoading ? '…' : `${habitPct}%`}
-                />
-                <StatCard
-                    icon="calendar-outline" color="#6C63FF"
-                    label="Nivel"
-                    value={profile ? `Nv. ${profile.nivel}` : '…'}
-                />
-            </View>
-
-            {/* ── Habits today ───────────────────────────── */}
-            <View style={styles.sectionRow}>
-                <Text style={styles.sectionTitle}>Hábitos hoy</Text>
-                <TouchableOpacity onPress={() => onNavigate?.('Hábitos')}>
-                    <Text style={styles.sectionLink}>Ver todos →</Text>
-                </TouchableOpacity>
-            </View>
-
-            {habitsLoading && !refreshing && (
-                <ActivityIndicator color="#6C63FF" style={{ marginVertical: 12 }} />
-            )}
-
-            {!habitsLoading && habits.length === 0 && (
-                <View style={styles.emptyCard}>
-                    <Text style={styles.emptyText}>Sin hábitos creados aún</Text>
-                    <TouchableOpacity onPress={() => onNavigate?.('Hábitos')}>
-                        <Text style={styles.emptyLink}>Crear uno →</Text>
-                    </TouchableOpacity>
-                </View>
-            )}
-
-            {habits.slice(0, 4).map((habit) => {
-                const done = !!habit.log?.completed;
-                return (
-                    <TouchableOpacity
-                        key={habit.id}
-                        style={styles.habitRow}
-                        onPress={() => toggleHabit(habit.id, done)}
-                        activeOpacity={0.7}
-                    >
-                        <View style={[styles.habitIcon, { backgroundColor: habit.color + '22' }]}>
-                            <Text style={{ fontSize: 18 }}>{habit.icon}</Text>
+                        <View style={styles.evtInfo}>
+                            <Text style={styles.evtTitle} numberOfLines={1}>{evt.title}</Text>
+                            <Text style={styles.evtMeta}>
+                                {new Date(evt.event_date + 'T00:00:00').toLocaleDateString('es-AR', {
+                                    weekday: 'short', day: 'numeric', month: 'short',
+                                })}
+                                {evt.event_time ? `  ·  ${evt.event_time.slice(0, 5)}` : ''}
+                            </Text>
                         </View>
-                        <View style={styles.habitInfo}>
-                            <Text style={[styles.habitName, done && styles.doneName]}>{habit.name}</Text>
-                            <Text style={styles.habitStreak}>🔥 {habit.streak} días</Text>
+                        <View style={[styles.evtTypePill, { backgroundColor: evt.color + '22' }]}>
+                            <Text style={[styles.evtTypePillText, { color: evt.color }]}>
+                                {evt.type === 'reminder' ? 'Recordatorio' : evt.type === 'milestone' ? 'Hito' : 'Evento'}
+                            </Text>
                         </View>
-                        <View style={[styles.habitCheck, done && { backgroundColor: habit.color, borderColor: habit.color }]}>
-                            {done && <Ionicons name="checkmark" size={14} color="#FFF" />}
-                        </View>
-                    </TouchableOpacity>
-                );
-            })}
-
-            {habits.length > 4 && (
-                <TouchableOpacity style={styles.showMoreBtn} onPress={() => onNavigate?.('Hábitos')}>
-                    <Text style={styles.showMoreText}>Ver {habits.length - 4} más →</Text>
-                </TouchableOpacity>
-            )}
-
-            {/* ── Próximos Eventos ───────────────────────── */}
-            <View style={styles.sectionRow}>
-                <Text style={styles.sectionTitle}>Próximos eventos</Text>
-                <TouchableOpacity onPress={() => onNavigate?.('Agenda')}>
-                    <Text style={styles.sectionLink}>Ver agenda →</Text>
-                </TouchableOpacity>
-            </View>
-
-            {upcomingEvents.length === 0 && (
-                <View style={styles.emptyCard}>
-                    <Text style={styles.emptyText}>Sin eventos próximos</Text>
-                    <TouchableOpacity onPress={() => onNavigate?.('Agenda')}>
-                        <Text style={styles.emptyLink}>Agregar →</Text>
-                    </TouchableOpacity>
-                </View>
-            )}
-
-            {upcomingEvents.map((evt) => (
-                <View key={evt.id} style={[styles.evtCard, { borderLeftColor: evt.color }]}>
-                    <View style={[styles.evtIconWrap, { backgroundColor: evt.color + '22' }]}>
-                        <Text style={styles.evtTypeIcon}>
-                            {evt.type === 'reminder' ? '🔔' : evt.type === 'milestone' ? '🏁' : '📅'}
-                        </Text>
                     </View>
-                    <View style={styles.evtInfo}>
-                        <Text style={styles.evtTitle} numberOfLines={1}>{evt.title}</Text>
-                        <Text style={styles.evtMeta}>
-                            {new Date(evt.event_date + 'T00:00:00').toLocaleDateString('es-AR', {
-                                weekday: 'short', day: 'numeric', month: 'short',
-                            })}
-                            {evt.event_time ? `  ·  ${evt.event_time.slice(0, 5)}` : ''}
-                        </Text>
-                    </View>
-                    <View style={[styles.evtTypePill, { backgroundColor: evt.color + '22' }]}>
-                        <Text style={[styles.evtTypePillText, { color: evt.color }]}>
-                            {evt.type === 'reminder' ? 'Recordatorio' : evt.type === 'milestone' ? 'Hito' : 'Evento'}
-                        </Text>
-                    </View>
-                </View>
-            ))}
+                ))}
 
-            {/* ── Objectives ─────────────────────────────── */}
-            <View style={styles.sectionRow}>
-                <Text style={styles.sectionTitle}>Objetivos próximos</Text>
-                <TouchableOpacity onPress={() => onNavigate?.('Objetivos')}>
-                    <Text style={styles.sectionLink}>Ver todos →</Text>
-                </TouchableOpacity>
-            </View>
-
-            {!objLoading && objectives.length === 0 && (
-                <View style={styles.emptyCard}>
-                    <Text style={styles.emptyText}>Sin objetivos activos</Text>
+                {/* ── Objectives ─────────────────────────────── */}
+                <View style={styles.sectionRow}>
+                    <Text style={styles.sectionTitle}>Objetivos próximos</Text>
                     <TouchableOpacity onPress={() => onNavigate?.('Objetivos')}>
-                        <Text style={styles.emptyLink}>Crear uno →</Text>
+                        <Text style={styles.sectionLink}>Ver todos →</Text>
                     </TouchableOpacity>
                 </View>
-            )}
 
-            {objectives.slice(0, 3).map((obj) => (
-                <View key={obj.id} style={[styles.objCard, { borderLeftColor: obj.color }]}>
-                    <View style={styles.objHeader}>
-                        <Text style={{ fontSize: 18 }}>{obj.icon}</Text>
-                        <Text style={styles.objTitle} numberOfLines={1}>{obj.title}</Text>
-                        <View style={[styles.objBadge, { backgroundColor: obj.color + '22' }]}>
-                            <Text style={[styles.objBadgeText, { color: obj.color }]}>{obj.progress}%</Text>
+                {!objLoading && objectives.length === 0 && (
+                    <View style={styles.emptyCard}>
+                        <Text style={styles.emptyText}>Sin objetivos activos</Text>
+                        <TouchableOpacity onPress={() => onNavigate?.('Objetivos')}>
+                            <Text style={styles.emptyLink}>Crear uno →</Text>
+                        </TouchableOpacity>
+                    </View>
+                )}
+
+                {objectives.slice(0, 3).map((obj) => (
+                    <View key={obj.id} style={[styles.objCard, { borderLeftColor: obj.color }]}>
+                        <View style={styles.objHeader}>
+                            <Text style={{ fontSize: 18 }}>{obj.icon}</Text>
+                            <Text style={styles.objTitle} numberOfLines={1}>{obj.title}</Text>
+                            <View style={[styles.objBadge, { backgroundColor: obj.color + '22' }]}>
+                                <Text style={[styles.objBadgeText, { color: obj.color }]}>{obj.progress}%</Text>
+                            </View>
                         </View>
+                        <View style={styles.progressTrack}>
+                            <View style={[styles.progressFill, { width: `${obj.progress}%` as any, backgroundColor: obj.color }]} />
+                        </View>
+                        <Text style={styles.objMeta}>
+                            {obj.tasks.filter(t => t.completed).length}/{obj.tasks.length} tareas
+                            {obj.deadline ? `  ·  ${obj.deadline}` : ''}
+                        </Text>
                     </View>
-                    <View style={styles.progressTrack}>
-                        <View style={[styles.progressFill, { width: `${obj.progress}%` as any, backgroundColor: obj.color }]} />
-                    </View>
-                    <Text style={styles.objMeta}>
-                        {obj.tasks.filter(t => t.completed).length}/{obj.tasks.length} tareas
-                        {obj.deadline ? `  ·  ${obj.deadline}` : ''}
-                    </Text>
-                </View>
-            ))}
+                ))}
 
-            <View style={{ height: 24 }} />
-        </ScrollView>
+                <View style={{ height: 24 }} />
+            </ScrollView>
+        </GlowBackground>
     );
 }
 

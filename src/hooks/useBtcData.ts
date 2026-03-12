@@ -102,14 +102,15 @@ export function useBtcData(year: number = new Date().getFullYear()) {
         total_ars?: number;
         total_usdt?: number;
         note?: string;
-    }) => {
+    }): Promise<string> => {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error('Sin sesión');
-        const { error: err } = await supabase.from('btc_purchases').insert({
+        const { data, error: err } = await supabase.from('btc_purchases').insert({
             user_id: user.id, ...params,
-        });
+        }).select('id').single();
         if (err) throw err;
         await fetch();
+        return data.id;
     };
 
     const deletePurchase = async (id: string) => {
@@ -144,5 +145,23 @@ export function useBtcData(year: number = new Date().getFullYear()) {
         await fetch();
     };
 
-    return { purchases, goal, stats, loading, error, refresh: fetch, addPurchase, deletePurchase, saveGoal };
+    const updatePurchase = async (id: string, params: {
+        bought_at: string;
+        btc_amount: number;
+        price_usd: number;
+        currency: 'USD' | 'ARS' | 'USDT';
+        total_usd?: number | null;
+        total_ars?: number | null;
+        total_usdt?: number | null;
+        note?: string | null;
+    }) => {
+        const { error: err } = await supabase
+            .from('btc_purchases')
+            .update(params)
+            .eq('id', id);
+        if (err) throw err;
+        await fetch();
+    };
+
+    return { purchases, goal, stats, loading, error, refresh: fetch, addPurchase, updatePurchase, deletePurchase, saveGoal };
 }

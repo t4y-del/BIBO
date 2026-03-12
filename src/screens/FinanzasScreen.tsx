@@ -7,8 +7,12 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useBtcPrice, type PriceCurrency } from '../hooks/useBtcPrice';
 import { useBtcData, type BtcPurchase } from '../hooks/useBtcData';
-import { useSavings } from '../hooks/useSavings';
+import { useSavings, type SavingsEntry } from '../hooks/useSavings';
+import { useHideBalance, maskMoney } from '../contexts/HideBalanceContext';
+import GlowBackground from '../components/GlowBackground';
 import AddPurchaseModal from '../components/AddPurchaseModal';
+import SwipeablePurchaseCard from '../components/SwipeablePurchaseCard';
+import SwipeableSavingsCard from '../components/SwipeableSavingsCard';
 import AddSavingsModal from '../components/AddSavingsModal';
 import { LineChart } from 'react-native-gifted-charts';
 
@@ -54,15 +58,20 @@ function fmtDate(d: string) {
 export default function FinanzasScreen() {
     const [tab, setTab] = useState<Tab>('BTC');
     const now = new Date();
+    const glowVariant = tab === 'BTC' ? 'btc' : tab === 'Ahorros' ? 'savings' : 'default';
 
     return (
-        <View style={styles.container}>
+        <GlowBackground variant={glowVariant}>
             <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
                 {/* Header */}
-                <Text style={styles.dateText}>
-                    {now.toLocaleDateString('es-AR', { month: 'long', year: 'numeric' })}
-                </Text>
-                <Text style={styles.title}>Finanzas</Text>
+                <View style={styles.headerRow}>
+                    <View>
+                        <Text style={styles.dateText}>
+                            {now.toLocaleDateString('es-AR', { month: 'long', year: 'numeric' })}
+                        </Text>
+                        <Text style={styles.title}>Finanzas</Text>
+                    </View>
+                </View>
 
                 {/* Tab switcher */}
                 <View style={styles.tabBar}>
@@ -81,7 +90,7 @@ export default function FinanzasScreen() {
                 {tab === 'Ahorros' && <AhorrosSection />}
                 {tab === 'Resumen' && <ResumenSection />}
             </ScrollView>
-        </View>
+        </GlowBackground>
     );
 }
 
@@ -90,13 +99,16 @@ export default function FinanzasScreen() {
 ════════════════════════════════════════════════════════════ */
 function BTCSection() {
     const { price, loading: priceLoading, minutesSince, refresh: refreshPrice } = useBtcPrice();
-    const { purchases, goal, stats, loading: dataLoading, refresh: refreshData, addPurchase, deletePurchase, saveGoal } = useBtcData();
+    const { purchases, goal, stats, loading: dataLoading, refresh: refreshData, addPurchase, updatePurchase, deletePurchase, saveGoal } = useBtcData();
+    const { hidden, toggle } = useHideBalance();
 
     const [priceCurrency, setPriceCurrency] = useState<PriceCurrency>('usd');
     const [portfolioCurrency, setPortfolioCurrency] = useState<'ars' | 'usd'>('ars');
     const [showAddPurchase, setShowAddPurchase] = useState(false);
+    const [editingPurchase, setEditingPurchase] = useState<BtcPurchase | null>(null);
     const [showGoalModal, setShowGoalModal] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
+    const [newPurchaseId, setNewPurchaseId] = useState<string | null>(null);
 
     const onRefresh = useCallback(async () => {
         setRefreshing(true);
@@ -129,7 +141,7 @@ function BTCSection() {
     const currentYear = new Date().getFullYear();
 
     return (
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#F7931A">
+        <>
             {/* ── Portfolio card ─────────────────────────── */}
             <View style={styles.portfolioCard}>
                 <View style={styles.cardGlow} />
@@ -167,9 +179,14 @@ function BTCSection() {
                 {(dataLoading || priceLoading)
                     ? <ActivityIndicator color="#F7931A" style={{ marginVertical: 20 }} />
                     : <>
-                        <Text style={styles.portfolioAmount}>
-                            {portfolioVal !== null ? fmt(portfolioVal, portfolioCurrency) : '—'}
-                        </Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                            <Text style={styles.portfolioAmount}>
+                                {hidden ? '$ ****' : (portfolioVal !== null ? fmt(portfolioVal, portfolioCurrency) : '—')}
+                            </Text>
+                            <TouchableOpacity onPress={toggle} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                                <Ionicons name={hidden ? 'eye-off-outline' : 'eye-outline'} size={22} color="#7A7A9A" />
+                            </TouchableOpacity>
+                        </View>
                         <Text style={styles.portfolioSubLabel}>valor actual de tus BTC</Text>
                     </>
                 }
@@ -178,15 +195,15 @@ function BTCSection() {
 
                 <View style={styles.cardStats}>
                     <View style={styles.cardStat}>
-                        <Text style={styles.cardStatVal} numberOfLines={1}>
-                            {dataLoading ? '—' : `$${stats.totalArs.toLocaleString('es-AR', { maximumFractionDigits: 0 })}`}
+                        <Text style={[styles.cardStatVal, { color: '#F7931A' }]} numberOfLines={1}>
+                            {dataLoading ? '—' : (hidden ? '$ ****' : `$${stats.totalArs.toLocaleString('es-AR', { maximumFractionDigits: 0 })}`)}
                         </Text>
-                        <Text style={styles.cardStatLabel}>Invertido ARS</Text>
+                        <Text style={[styles.cardStatLabel, { color: '#F7931A' }]}>Invertido ARS</Text>
                     </View>
                     <View style={styles.cardStatDiv} />
                     <View style={styles.cardStat}>
                         <Text style={styles.cardStatVal}>
-                            {dataLoading ? '—' : stats.totalBtc.toFixed(6) + '₿'}
+                            {dataLoading ? '—' : (hidden ? '****₿' : stats.totalBtc.toFixed(6) + '₿')}
                         </Text>
                         <Text style={styles.cardStatLabel}>BTC acumulado</Text>
                     </View>
@@ -267,18 +284,16 @@ function BTCSection() {
             )}
 
             {purchases.map((p) => (
-                <PurchaseCard
+                <SwipeablePurchaseCard
                     key={p.id}
                     purchase={p}
                     currentPriceUsd={currentBtcPriceUsd}
-                    onDelete={() => Alert.alert(
-                        'Eliminar compra',
-                        `¿Eliminar la compra del ${fmtDate(p.bought_at)}?`,
-                        [
-                            { text: 'Cancelar', style: 'cancel' },
-                            { text: 'Eliminar', style: 'destructive', onPress: () => deletePurchase(p.id) },
-                        ]
-                    )}
+                    isNew={p.id === newPurchaseId}
+                    onEdit={() => {
+                        setEditingPurchase(p);
+                        setShowAddPurchase(true);
+                    }}
+                    onDelete={() => deletePurchase(p.id)}
                 />
             ))}
 
@@ -347,8 +362,24 @@ function BTCSection() {
                 visible={showAddPurchase}
                 currentPriceUsd={price?.usd ?? null}
                 currentPriceArs={price?.ars ?? null}
-                onClose={() => setShowAddPurchase(false)}
-                onSave={async (params) => { await addPurchase(params); setShowAddPurchase(false); }}
+                editPurchase={editingPurchase}
+                onClose={() => { setShowAddPurchase(false); setEditingPurchase(null); }}
+                onSave={async (params) => {
+                    if (editingPurchase) {
+                        await updatePurchase(editingPurchase.id, {
+                            ...params,
+                            total_usd: params.total_usd ?? null,
+                            total_ars: params.total_ars ?? null,
+                            note: params.note ?? null,
+                        });
+                    } else {
+                        const newId = await addPurchase(params);
+                        setNewPurchaseId(newId);
+                        setTimeout(() => setNewPurchaseId(null), 3500);
+                    }
+                    setShowAddPurchase(false);
+                    setEditingPurchase(null);
+                }}
             />
 
             <GoalModal
@@ -357,54 +388,11 @@ function BTCSection() {
                 onClose={() => setShowGoalModal(false)}
                 onSave={async (params) => { await saveGoal(params); setShowGoalModal(false); }}
             />
-        </RefreshControl>
+        </>
     );
 }
 
-/* ════════════════════════════════════════════════════════════
-   PURCHASE CARD
-════════════════════════════════════════════════════════════ */
-function PurchaseCard({
-    purchase, currentPriceUsd, onDelete,
-}: { purchase: BtcPurchase; currentPriceUsd: number; onDelete: () => void }) {
-    const costUsd = Number(purchase.btc_amount) * Number(purchase.price_usd);
-    const currentUsd = Number(purchase.btc_amount) * currentPriceUsd;
-    const plUsd = currentUsd - costUsd;
-    const plPct = costUsd > 0 ? (plUsd / costUsd) * 100 : 0;
-    const isPos = plUsd >= 0;
 
-    const paid = purchase.currency === 'ARS'
-        ? `$${Number(purchase.total_ars ?? 0).toLocaleString('es-AR', { maximumFractionDigits: 0 })} ARS`
-        : purchase.currency === 'USDT'
-            ? `$${Number(purchase.total_usdt ?? 0).toLocaleString()} USDT`
-            : `$${Number(purchase.total_usd ?? 0).toLocaleString()} USD`;
-
-    return (
-        <View style={styles.purchaseCard}>
-            <View style={styles.purchaseIconWrap}>
-                <Ionicons name="logo-bitcoin" size={22} color="#F7931A" />
-            </View>
-            <View style={styles.purchaseInfo}>
-                <Text style={styles.purchaseMonth}>{fmtDate(purchase.bought_at)}</Text>
-                <Text style={styles.purchaseSub}>
-                    Precio: ${Number(purchase.price_usd).toLocaleString('en-US', { maximumFractionDigits: 0 })} USD · {Number(purchase.btc_amount).toFixed(6)} ₿
-                </Text>
-                <Text style={styles.purchaseSub2}>{paid}</Text>
-            </View>
-            <View style={styles.purchaseRight}>
-                <Text style={[styles.purchasePl, { color: isPos ? '#4CAF50' : '#FF5252' }]}>
-                    {isPos ? '+' : ''}{plPct.toFixed(1)}%
-                </Text>
-                <Text style={styles.purchasePlAbs}>
-                    {isPos ? '+' : ''}${Math.abs(plUsd).toFixed(0)} USD
-                </Text>
-            </View>
-            <TouchableOpacity onPress={onDelete} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                <Ionicons name="trash-outline" size={16} color="#444460" />
-            </TouchableOpacity>
-        </View>
-    );
-}
 
 /* ════════════════════════════════════════════════════════════
    GOAL MODAL (inline, simpler than a full bottom sheet)
@@ -512,12 +500,15 @@ function fmtArs(n: number): string {
 
 function AhorrosSection() {
     const currentYear = new Date().getFullYear();
-    const { entries, goal, stats, loading, refresh, addEntry, deleteEntry, saveGoal } = useSavings(currentYear);
+    const { entries, goal, stats, loading, refresh, addEntry, updateEntry, deleteEntry, saveGoal } = useSavings(currentYear);
     const [showAddModal, setShowAddModal] = useState(false);
+    const [editingEntry, setEditingEntry] = useState<SavingsEntry | null>(null);
     const [showGoalModal, setShowGoalModal] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
     const [goalInput, setGoalInput] = useState('');
     const [goalLoading, setGoalLoading] = useState(false);
+    const [newEntryId, setNewEntryId] = useState<string | null>(null);
+    const { hidden, toggle } = useHideBalance();
 
     const onRefresh = useCallback(async () => {
         setRefreshing(true); await refresh(); setRefreshing(false);
@@ -552,27 +543,34 @@ function AhorrosSection() {
     };
 
     return (
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#2AC9A0">
+        <>
 
             {/* ── Summary card ─────────────────────────── */}
             <View style={styles.savingsSummaryCard}>
                 <View style={[styles.cardGlow, { backgroundColor: '#2AC9A011' }]} />
                 <View style={styles.portfolioTopRow}>
                     <Text style={styles.portfolioLabel}>Ahorros acumulados {currentYear}</Text>
-                    {stats.compliance >= 100 && !loading && (
-                        <View style={[styles.changePill, { backgroundColor: '#4CAF5020' }]}>
-                            <Ionicons name="trending-up" size={12} color="#4CAF50" />
-                            <Text style={[styles.changePillText, { color: '#4CAF50' }]}> En meta</Text>
-                        </View>
-                    )}
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        {stats.compliance >= 100 && !loading && (
+                            <View style={[styles.changePill, { backgroundColor: '#4CAF5020' }]}>
+                                <Ionicons name="trending-up" size={12} color="#4CAF50" />
+                                <Text style={[styles.changePillText, { color: '#4CAF50' }]}> En meta</Text>
+                            </View>
+                        )}
+                    </View>
                 </View>
 
                 {loading
                     ? <ActivityIndicator color="#2AC9A0" style={{ marginVertical: 20 }} />
                     : <>
-                        <Text style={styles.savingsAmount}>
-                            ${stats.totalArs.toLocaleString('es-AR', { maximumFractionDigits: 0 })}
-                        </Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                            <Text style={styles.savingsAmount}>
+                                {hidden ? '$ ****' : `$${stats.totalArs.toLocaleString('es-AR', { maximumFractionDigits: 0 })}`}
+                            </Text>
+                            <TouchableOpacity onPress={toggle} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                                <Ionicons name={hidden ? 'eye-off-outline' : 'eye-outline'} size={22} color="#7A7A9A" />
+                            </TouchableOpacity>
+                        </View>
                         <Text style={styles.portfolioSubLabel}>ARS · {currentYear}</Text>
                     </>
                 }
@@ -724,51 +722,19 @@ function AhorrosSection() {
             )}
 
             {/* Historical entries: all months with entries (descending) */}
-            {[...entries].reverse().map((entry) => {
-                const ok = monthlyTarget > 0 && Number(entry.amount_ars) >= monthlyTarget;
-                const pct = monthlyTarget > 0
-                    ? Math.min(100, (Number(entry.amount_ars) / monthlyTarget) * 100)
-                    : 100;
-                return (
-                    <View key={entry.id} style={styles.savingsEntryCard}>
-                        <View style={[styles.savingsEntryCheck, { backgroundColor: ok ? '#2AC9A020' : '#D1D1D6' }]}>
-                            <Ionicons
-                                name={ok ? 'checkmark' : 'time-outline'}
-                                size={18}
-                                color={ok ? '#2AC9A0' : '#8E8E93'}
-                            />
-                        </View>
-                        <View style={styles.savingsEntryInfo}>
-                            <Text style={styles.savingsEntryMonth}>
-                                {MONTH_NAMES_LONG[entry.month - 1]} {entry.year}
-                            </Text>
-                            <Text style={styles.savingsEntrySub}>
-                                {ok ? 'Meta cumplida' : 'Parcial'} · {entry.saved_at.slice(8)} {MONTH_NAMES_SHORT[entry.month - 1]}
-                            </Text>
-                            <View style={styles.savingsEntryBar}>
-                                <View style={[styles.savingsEntryBarFill, { width: `${pct}%` as any, backgroundColor: ok ? '#2AC9A0' : '#74C0FC' }]} />
-                            </View>
-                        </View>
-                        <View style={styles.savingsEntryRight}>
-                            <Text style={styles.savingsEntryAmount}>
-                                ${Number(entry.amount_ars).toLocaleString('es-AR', { maximumFractionDigits: 0 })}
-                            </Text>
-                            <Text style={[styles.savingsEntryPct, { color: ok ? '#2AC9A0' : '#74C0FC' }]}>
-                                {ok ? '✓ ' : ''}{pct.toFixed(0)}%
-                            </Text>
-                        </View>
-                        <TouchableOpacity
-                            onPress={() => Alert.alert('Eliminar', `¿Eliminar el ahorro de ${MONTH_NAMES_LONG[entry.month - 1]}?`, [
-                                { text: 'Cancelar', style: 'cancel' },
-                                { text: 'Eliminar', style: 'destructive', onPress: () => deleteEntry(entry.id) }
-                            ])}
-                            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                        >
-                            <Ionicons name="trash-outline" size={15} color="#444460" />
-                        </TouchableOpacity>
-                    </View>
-                );
-            })}
+            {[...entries].reverse().map((entry) => (
+                <SwipeableSavingsCard
+                    key={entry.id}
+                    entry={entry}
+                    monthlyTarget={monthlyTarget}
+                    isNew={entry.id === newEntryId}
+                    onEdit={() => {
+                        setEditingEntry(entry);
+                        setShowAddModal(true);
+                    }}
+                    onDelete={() => deleteEntry(entry.id)}
+                />
+            ))}
 
             {/* ── Año completo (grid 3 columnas × 4 filas) ───── */}
             <Text style={[styles.sectionTitle, { marginTop: 24, marginBottom: 12 }]}>Año completo</Text>
@@ -801,8 +767,19 @@ function AhorrosSection() {
                 visible={showAddModal}
                 currentYear={currentYear}
                 existingMonths={existingMonths}
-                onClose={() => setShowAddModal(false)}
-                onSave={async (params) => { await addEntry(params); setShowAddModal(false); }}
+                editEntry={editingEntry}
+                onClose={() => { setShowAddModal(false); setEditingEntry(null); }}
+                onSave={async (params) => {
+                    if (editingEntry) {
+                        await updateEntry(editingEntry.id, params);
+                    } else {
+                        const newId = await addEntry(params);
+                        setNewEntryId(newId);
+                        setTimeout(() => setNewEntryId(null), 3500);
+                    }
+                    setShowAddModal(false);
+                    setEditingEntry(null);
+                }}
             />
 
             {/* Goal modal */}
@@ -846,7 +823,7 @@ function AhorrosSection() {
                     </View>
                 </KeyboardAvoidingView>
             </Modal>
-        </RefreshControl>
+        </>
     );
 }
 
@@ -959,6 +936,7 @@ function ResumenSection() {
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#0A0A1A' },
     scroll: { paddingHorizontal: 18, paddingTop: 56, paddingBottom: 30 },
+    headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 },
 
     dateText: { fontSize: 13, color: '#7A7A9A', marginBottom: 4, textTransform: 'capitalize' },
     title: { fontSize: 30, fontWeight: '800', color: '#FFF', letterSpacing: -0.5, marginBottom: 18 },

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, StatusBar, ActivityIndicator } from 'react-native';
 
 import { supabase } from './src/config/supabase';
+import { HideBalanceProvider } from './src/contexts/HideBalanceContext';
 import WelcomeScreen from './src/screens/WelcomeScreen';
 import RegisterScreen from './src/screens/RegisterScreen';
 import LoginScreen from './src/screens/LoginScreen';
@@ -93,15 +94,17 @@ export default function App() {
 
   // ── Main app with tabs ─────────────────────────────────────────────
   return (
-    <View style={styles.main}>
-      <StatusBar barStyle="light-content" />
-      {activeTab === 'Home' && <HomeScreen onNavigate={navigate} />}
-      {activeTab === 'Hábitos' && <HabitosScreen />}
-      {activeTab === 'Objetivos' && <ObjetivosScreen />}
-      {activeTab === 'Agenda' && <AgendaScreen />}
-      {activeTab === 'Finanzas' && <FinanzasScreen />}
-      <BottomTabBar active={activeTab} onTabPress={setActiveTab} />
-    </View>
+    <HideBalanceProvider>
+      <View style={styles.main}>
+        <StatusBar barStyle="light-content" />
+        {activeTab === 'Home' && <HomeScreen onNavigate={navigate} />}
+        {activeTab === 'Hábitos' && <HabitosScreen />}
+        {activeTab === 'Objetivos' && <ObjetivosScreen />}
+        {activeTab === 'Agenda' && <AgendaScreen />}
+        {activeTab === 'Finanzas' && <FinanzasScreen />}
+        <BottomTabBar active={activeTab} onTabPress={setActiveTab} />
+      </View>
+    </HideBalanceProvider>
   );
 }
 

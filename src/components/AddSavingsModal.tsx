@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View, Text, StyleSheet, TouchableOpacity, Modal,
     TextInput, KeyboardAvoidingView, Platform,
     ActivityIndicator, Alert, ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import type { SavingsEntry } from '../hooks/useSavings';
 
 const MONTHS = [
     'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -25,19 +26,36 @@ export default function AddSavingsModal({
     existingMonths,
     onClose,
     onSave,
+    editEntry,
 }: {
     visible: boolean;
     currentYear: number;
-    existingMonths: number[];   // months that already have an entry (1-12)
+    existingMonths: number[];
     onClose: () => void;
     onSave: (params: { month: number; amount_ars: number; saved_at: string; note?: string }) => Promise<void>;
+    editEntry?: SavingsEntry | null;
 }) {
+    const isEditing = !!editEntry;
     const currentMonth = new Date().getMonth() + 1;
+
     const [month, setMonth] = useState(currentMonth);
     const [amount, setAmount] = useState('');
     const [date, setDate] = useState(todayStr());
     const [note, setNote] = useState('');
     const [loading, setLoading] = useState(false);
+
+    // Pre-fill when editing
+    useEffect(() => {
+        if (!visible) return;
+        if (editEntry) {
+            setMonth(editEntry.month);
+            setAmount(String(Math.round(Number(editEntry.amount_ars))));
+            setDate(editEntry.saved_at);
+            setNote(editEntry.note ?? '');
+        } else {
+            reset();
+        }
+    }, [visible, editEntry]);
 
     const reset = () => {
         setMonth(currentMonth);
@@ -52,7 +70,7 @@ export default function AddSavingsModal({
             Alert.alert('Error', 'Ingresá un monto válido'); return;
         }
 
-        const alreadyExists = existingMonths.includes(month);
+        const alreadyExists = !isEditing && existingMonths.includes(month);
         const proceed = async () => {
             setLoading(true);
             try {
@@ -87,9 +105,11 @@ export default function AddSavingsModal({
                 <View style={styles.sheet}>
                     <View style={styles.handle} />
                     <View style={styles.titleRow}>
-                        <Text style={styles.sheetTitle}>Registrar ahorro</Text>
+                        <Text style={styles.sheetTitle}>
+                            {isEditing ? 'Editar ahorro' : 'Registrar ahorro'}
+                        </Text>
                         <TouchableOpacity onPress={onClose}>
-                            <Ionicons name="close" size={22} color="#8E8E93" />
+                            <Ionicons name="close" size={22} color="#7A7A9A" />
                         </TouchableOpacity>
                     </View>
 
@@ -134,7 +154,7 @@ export default function AddSavingsModal({
                         {/* Fecha */}
                         <Text style={styles.label}>FECHA (YYYY-MM-DD)</Text>
                         <View style={styles.inputWrap}>
-                            <Ionicons name="calendar-outline" size={18} color="#8E8E93" />
+                            <Ionicons name="calendar-outline" size={18} color="#7A7A9A" />
                             <TextInput
                                 style={styles.input}
                                 value={date}
@@ -169,7 +189,9 @@ export default function AddSavingsModal({
                             >
                                 {loading
                                     ? <ActivityIndicator color="#FFF" size="small" />
-                                    : <Text style={styles.saveText}>Guardar ahorro</Text>}
+                                    : <Text style={styles.saveText}>
+                                        {isEditing ? 'Guardar cambios' : 'Guardar ahorro'}
+                                    </Text>}
                             </TouchableOpacity>
                         </View>
                         <View style={{ height: 12 }} />
@@ -184,35 +206,35 @@ const styles = StyleSheet.create({
     overlay: { flex: 1, justifyContent: 'flex-end' },
     backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.65)' },
     sheet: {
-        backgroundColor: '#FFFFFF', borderTopLeftRadius: 28, borderTopRightRadius: 28,
+        backgroundColor: '#12122A', borderTopLeftRadius: 28, borderTopRightRadius: 28,
         padding: 24, paddingBottom: 32, maxHeight: '85%',
-        borderTopWidth: 1, borderColor: 'rgba(60,60,67,0.12)',
+        borderTopWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
     },
     handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: '#2A2A4A', alignSelf: 'center', marginBottom: 20 },
     titleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
-    sheetTitle: { fontSize: 20, fontWeight: '800', color: '#1C1C1E' },
+    sheetTitle: { fontSize: 20, fontWeight: '800', color: '#FFF' },
 
-    label: { fontSize: 11, fontWeight: '700', color: '#6A6A8A', letterSpacing: 1, marginBottom: 8 },
+    label: { fontSize: 11, fontWeight: '700', color: '#7A7A9A', letterSpacing: 1, marginBottom: 8 },
 
     monthRow: { flexDirection: 'row', gap: 8, paddingRight: 4 },
-    monthBtn: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, backgroundColor: '#E5E5EA', borderWidth: 1.5, borderColor: 'rgba(60,60,67,0.12)', alignItems: 'center', minWidth: 56 },
+    monthBtn: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, backgroundColor: '#14142A', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.06)', alignItems: 'center', minWidth: 56 },
     monthBtnActive: { borderColor: '#2AC9A0', backgroundColor: '#2AC9A018' },
-    monthBtnText: { fontSize: 11, fontWeight: '700', color: '#8E8E93' },
+    monthBtnText: { fontSize: 11, fontWeight: '700', color: '#7A7A9A' },
     monthBtnTextActive: { color: '#2AC9A0' },
     monthDot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: '#2AC9A0', marginTop: 4 },
 
     inputWrap: {
-        flexDirection: 'row', alignItems: 'center', backgroundColor: '#E5E5EA',
+        flexDirection: 'row', alignItems: 'center', backgroundColor: '#14142A',
         borderRadius: 14, paddingHorizontal: 14, height: 52, gap: 10, marginBottom: 16,
-        borderWidth: 1.5, borderColor: 'rgba(60,60,67,0.12)',
+        borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.06)',
     },
-    input: { flex: 1, color: '#1C1C1E', fontSize: 15 },
+    input: { flex: 1, color: '#FFF', fontSize: 15 },
     inputPrefix: { fontSize: 16 },
     inputSuffix: { fontSize: 12, color: '#2AC9A0', fontWeight: '600' },
 
     btnRow: { flexDirection: 'row', gap: 12, marginTop: 8 },
     cancelBtn: { flex: 1, height: 52, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', justifyContent: 'center', alignItems: 'center' },
-    cancelText: { color: '#8E8E93', fontWeight: '600', fontSize: 15 },
+    cancelText: { color: '#7A7A9A', fontWeight: '600', fontSize: 15 },
     saveBtn: { flex: 2, height: 52, borderRadius: 14, backgroundColor: '#2AC9A0', justifyContent: 'center', alignItems: 'center' },
-    saveText: { color: '#1C1C1E', fontWeight: '800', fontSize: 15 },
+    saveText: { color: '#FFF', fontWeight: '800', fontSize: 15 },
 });

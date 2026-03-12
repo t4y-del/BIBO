@@ -1,43 +1,51 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
-    View, Text, StyleSheet, ScrollView, TouchableOpacity,
+    View, Text, StyleSheet, TouchableOpacity,
     Modal, TextInput, KeyboardAvoidingView, Platform,
     ActivityIndicator, Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import DateTimePicker from '@react-native-community/datetimepicker';
-import { useObjectives } from '../hooks/useObjectives';
+import type { Objective } from '../hooks/useObjectives';
 
 const ICONS = ['🎯', '🏆', '📚', '💪', '🌍', '💡', '🚀', '🎓', '🏠', '💰', '🎵', '❤️', '🌱', '✈️', '🔬'];
 const COLORS = ['#2AC9A0', '#4CAF50', '#F7931A', '#00D9FF', '#FF5252', '#FF9800', '#E91E63', '#9C27B0'];
 
-export default function AddObjectiveModal({
-    visible, onClose, onCreated,
+export default function EditObjectiveModal({
+    visible, objective, onClose, onSave,
 }: {
-    visible: boolean; onClose: () => void; onCreated: () => void;
+    visible: boolean;
+    objective: Objective | null;
+    onClose: () => void;
+    onSave: (id: string, updates: { title: string; description?: string; icon: string; color: string; deadline?: string }) => Promise<void>;
 }) {
-    const { createObjective } = useObjectives();
-
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
     const [icon, setIcon] = useState('🎯');
     const [color, setColor] = useState('#2AC9A0');
     const [deadline, setDeadline] = useState('');
-    const [showDatePicker, setShowDatePicker] = useState(false);
     const [loading, setLoading] = useState(false);
 
+    useEffect(() => {
+        if (objective) {
+            setTitle(objective.title);
+            setDescription(objective.description ?? '');
+            setIcon(objective.icon);
+            setColor(objective.color);
+            setDeadline(objective.deadline ?? '');
+        }
+    }, [objective]);
+
     const handleSave = async () => {
-        if (!title.trim()) { Alert.alert('Ingresá un nombre para el objetivo'); return; }
+        if (!objective || !title.trim()) { Alert.alert('Ingresá un nombre'); return; }
         setLoading(true);
         try {
-            await createObjective({
+            await onSave(objective.id, {
                 title: title.trim(),
                 description: description.trim() || undefined,
                 icon, color,
                 deadline: deadline || undefined,
             });
-            setTitle(''); setDescription(''); setIcon('🎯'); setColor('#2AC9A0'); setDeadline(''); setShowDatePicker(false);
-            onCreated();
+            onClose();
         } catch (e: any) {
             Alert.alert('Error', e.message);
         } finally {
@@ -55,80 +63,47 @@ export default function AddObjectiveModal({
 
                 <View style={styles.sheet}>
                     <View style={styles.handle} />
-                    <Text style={styles.title}>Nuevo objetivo</Text>
+                    <Text style={styles.title}>Editar objetivo</Text>
 
-                    {/* Title */}
                     <Text style={styles.label}>NOMBRE</Text>
                     <View style={styles.inputWrap}>
-                        <Text style={styles.selectedIcon}>{icon}</Text>
+                        <Text style={{ fontSize: 20 }}>{icon}</Text>
                         <TextInput
                             style={styles.input}
                             value={title}
                             onChangeText={setTitle}
-                            placeholder="Ej: Terminar curso de React..."
+                            placeholder="Nombre del objetivo"
                             placeholderTextColor="#555"
-                            autoFocus
                             maxLength={60}
                         />
                     </View>
 
-                    {/* Description */}
                     <Text style={styles.label}>DESCRIPCIÓN (opcional)</Text>
                     <View style={[styles.inputWrap, { height: 72, alignItems: 'flex-start', paddingTop: 12 }]}>
                         <TextInput
                             style={[styles.input, { height: 48, textAlignVertical: 'top' }]}
                             value={description}
                             onChangeText={setDescription}
-                            placeholder="¿Por qué es importante para vos?"
+                            placeholder="¿Por qué es importante?"
                             placeholderTextColor="#555"
                             multiline
                             maxLength={120}
                         />
                     </View>
 
-                    {/* Deadline */}
-                    <Text style={styles.label}>FECHA LÍMITE (opcional)</Text>
-                    <TouchableOpacity
-                        style={styles.inputWrap}
-                        onPress={() => setShowDatePicker(true)}
-                        activeOpacity={0.7}
-                    >
+                    <Text style={styles.label}>FECHA LÍMITE (opcional, YYYY-MM-DD)</Text>
+                    <View style={styles.inputWrap}>
                         <Ionicons name="calendar-outline" size={18} color="#8E8E93" />
-                        <Text style={[styles.input, { color: deadline ? '#1C1C1E' : '#555' }]}>
-                            {deadline
-                                ? new Date(deadline + 'T12:00:00').toLocaleDateString('es-AR', {
-                                    day: 'numeric', month: 'long', year: 'numeric',
-                                })
-                                : 'Seleccionar fecha...'}
-                        </Text>
-                        {deadline !== '' && (
-                            <TouchableOpacity
-                                onPress={() => setDeadline('')}
-                                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                            >
-                                <Ionicons name="close-circle" size={20} color="#8E8E93" />
-                            </TouchableOpacity>
-                        )}
-                    </TouchableOpacity>
-                    {showDatePicker && (
-                        <DateTimePicker
-                            value={deadline ? new Date(deadline + 'T12:00:00') : new Date()}
-                            mode="date"
-                            display={Platform.OS === 'ios' ? 'inline' : 'default'}
-                            minimumDate={new Date()}
-                            onChange={(event, selectedDate) => {
-                                setShowDatePicker(Platform.OS === 'ios');
-                                if (event.type === 'set' && selectedDate) {
-                                    const y = selectedDate.getFullYear();
-                                    const m = String(selectedDate.getMonth() + 1).padStart(2, '0');
-                                    const d = String(selectedDate.getDate()).padStart(2, '0');
-                                    setDeadline(`${y}-${m}-${d}`);
-                                }
-                            }}
+                        <TextInput
+                            style={styles.input}
+                            value={deadline}
+                            onChangeText={setDeadline}
+                            placeholder="2026-12-31"
+                            placeholderTextColor="#555"
+                            maxLength={10}
                         />
-                    )}
+                    </View>
 
-                    {/* Icon picker */}
                     <Text style={styles.label}>ÍCONO</Text>
                     <View style={styles.picker}>
                         {ICONS.map((ic) => (
@@ -137,12 +112,11 @@ export default function AddObjectiveModal({
                                 style={[styles.iconBtn, icon === ic && { borderColor: color, borderWidth: 2 }]}
                                 onPress={() => setIcon(ic)}
                             >
-                                <Text style={styles.iconBtnText}>{ic}</Text>
+                                <Text style={{ fontSize: 22 }}>{ic}</Text>
                             </TouchableOpacity>
                         ))}
                     </View>
 
-                    {/* Color picker */}
                     <Text style={styles.label}>COLOR</Text>
                     <View style={styles.colorRow}>
                         {COLORS.map((c) => (
@@ -155,7 +129,6 @@ export default function AddObjectiveModal({
                         ))}
                     </View>
 
-                    {/* Buttons */}
                     <View style={styles.btnRow}>
                         <TouchableOpacity style={styles.cancelBtn} onPress={onClose}>
                             <Text style={styles.cancelText}>Cancelar</Text>
@@ -180,26 +153,24 @@ const styles = StyleSheet.create({
     overlay: { flex: 1, justifyContent: 'flex-end' },
     backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.6)' },
     sheet: {
-        backgroundColor: '#FFFFFF', borderTopLeftRadius: 28, borderTopRightRadius: 28,
+        backgroundColor: '#1A1A2E', borderTopLeftRadius: 28, borderTopRightRadius: 28,
         padding: 24, paddingBottom: 40,
-        borderTopWidth: 1, borderColor: 'rgba(60,60,67,0.12)',
+        borderTopWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
     },
     handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: '#3A3A5A', alignSelf: 'center', marginBottom: 20 },
-    title: { fontSize: 22, fontWeight: '800', color: '#1C1C1E', marginBottom: 20 },
+    title: { fontSize: 22, fontWeight: '800', color: '#FFF', marginBottom: 20 },
     label: { fontSize: 11, fontWeight: '700', color: '#8E8E93', letterSpacing: 1, marginBottom: 8 },
     inputWrap: {
-        flexDirection: 'row', alignItems: 'center', backgroundColor: '#E5E5EA',
+        flexDirection: 'row', alignItems: 'center', backgroundColor: '#12122A',
         borderRadius: 14, paddingHorizontal: 14, height: 52, gap: 10, marginBottom: 16,
-        borderWidth: 1, borderColor: 'rgba(60,60,67,0.12)',
+        borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)',
     },
-    selectedIcon: { fontSize: 20 },
-    input: { flex: 1, color: '#1C1C1E', fontSize: 15 },
+    input: { flex: 1, color: '#FFF', fontSize: 15 },
     picker: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
     iconBtn: {
-        width: 44, height: 44, borderRadius: 12, backgroundColor: '#E5E5EA',
+        width: 44, height: 44, borderRadius: 12, backgroundColor: '#12122A',
         justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: 'transparent',
     },
-    iconBtnText: { fontSize: 22 },
     colorRow: { flexDirection: 'row', gap: 10, marginBottom: 24 },
     colorDot: { width: 32, height: 32, borderRadius: 16 },
     colorDotActive: { borderWidth: 3, borderColor: '#FFF', transform: [{ scale: 1.15 }] },
@@ -210,5 +181,5 @@ const styles = StyleSheet.create({
     },
     cancelText: { color: '#8E8E93', fontWeight: '600', fontSize: 15 },
     saveBtn: { flex: 2, height: 52, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
-    saveText: { color: '#1C1C1E', fontWeight: '700', fontSize: 15 },
+    saveText: { color: '#FFF', fontWeight: '700', fontSize: 15 },
 });

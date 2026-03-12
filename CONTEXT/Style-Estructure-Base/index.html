@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LifeOS — App Completa v2</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#0a1628;--bg2:#0f1e35;--card:#132035;--card2:#1a2a45;
+  --border:rgba(255,255,255,0.08);--teal:#2ac9a0;--blue:#4a9eff;
+  --btc:#f7931a;--green:#30d158;--red:#ff3b30;--purple:#bf5af2;
+  --orange:#ff9500;--pink:#ff375f;--yellow:#ffd60a;
+  --label:#fff;--label2:rgba(255,255,255,.65);--label3:rgba(255,255,255,.35);
+  --sep:rgba(255,255,255,.07);--font:'Inter',sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-font-smoothing:antialiased;}
+body{background:#060e1c;min-height:100vh;font-family:var(--font);display:flex;flex-direction:column;align-items:center;padding:40px 20px 80px;}
+.page-title{font-size:11px;letter-spacing:3px;text-transform:uppercase;color:var(--label3);margin-bottom:6px;font-weight:600;}
+.page-heading{font-size:28px;font-weight:800;color:var(--label);letter-spacing:-.8px;margin-bottom:4px;text-align:center;}
+.page-sub{font-size:13px;color:var(--label3);margin-bottom:32px;text-align:center;}
+
+/* PHONE */
+.phone{width:393px;height:852px;border-radius:54px;overflow:hidden;position:relative;background:var(--bg);box-shadow:0 0 0 1px rgba(255,255,255,.06),0 0 0 9px rgba(0,0,0,.5),0 0 0 11px rgba(255,255,255,.03),0 50px 120px rgba(0,0,0,.8);display:flex;flex-direction:column;}
+.island{position:absolute;top:12px;left:50%;transform:translateX(-50%);width:126px;height:36px;background:#000;border-radius:20px;z-index:100;}
+.sbar{height:59px;display:flex;align-items:flex-end;justify-content:space-between;padding:0 28px 10px;font-size:15px;font-weight:600;color:rgba(255,255,255,.6);flex-shrink:0;}
+.screen{flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;}
+.screen::-webkit-scrollbar{display:none;}
+.s{display:none;}.s.on{display:block;}
+
+/* BOTTOM NAV */
+.bnav{height:83px;background:rgba(10,22,40,.97);backdrop-filter:blur(20px);border-top:.5px solid var(--sep);display:flex;align-items:flex-start;justify-content:space-around;padding:10px 4px 0;flex-shrink:0;}
+.ni{display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;padding:4px 10px;min-width:56px;}
+.ni.on .nlbl{color:var(--teal)!important;}
+.ni.on .ni-icon-wrap{color:var(--teal)!important;}
+.ni-icon-wrap{font-size:22px;color:rgba(255,255,255,.3);transition:color .2s;}
+.nlbl{font-size:9px;font-weight:600;color:rgba(255,255,255,.3);letter-spacing:-.1px;}
+
+/* NAV ACTIVE DOT */
+.ni.on .nlbl{position:relative;}
+
+/* UTILS */
+.hdr-row{display:flex;justify-content:space-between;align-items:flex-end;padding:4px 20px 16px;}
+.hdr-date{font-size:13px;color:var(--label3);font-weight:500;}
+.hdr-title{font-size:28px;font-weight:800;color:var(--label);letter-spacing:-.5px;}
+.av{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,var(--teal),#4a9eff);display:flex;align-items:center;justify-content:center;font-size:17px;cursor:pointer;box-shadow:0 0 0 2px rgba(42,201,160,.3);}
+.sec-row{display:flex;justify-content:space-between;align-items:center;padding:16px 20px 10px;}
+.sec-t{font-size:18px;font-weight:700;color:var(--label);letter-spacing:-.3px;}
+.sec-a{font-size:13px;color:var(--teal);font-weight:600;cursor:pointer;}
+.card-b{background:var(--card);border:1px solid var(--border);border-radius:20px;}
+.lrow{display:flex;align-items:center;gap:12px;padding:13px 16px;cursor:pointer;}
+.lrow:not(:last-child){border-bottom:.5px solid var(--sep);}
+.licon{width:42px;height:42px;border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0;}
+.lmid{flex:1;min-width:0;}
+.lname{font-size:15px;font-weight:600;color:var(--label);letter-spacing:-.2px;}
+.lsub{font-size:12px;color:var(--label3);margin-top:2px;}
+.lright{text-align:right;}
+.lval{font-size:14px;font-weight:700;color:var(--label);}
+.lchev{color:rgba(255,255,255,.2);font-size:14px;margin-left:6px;}
+.pbar{height:3px;background:rgba(255,255,255,.08);border-radius:3px;overflow:hidden;margin-top:5px;}
+.pfill{height:100%;border-radius:3px;}
+.badge{padding:4px 9px;border-radius:20px;font-size:11px;font-weight:700;}
+.badge.up{background:rgba(48,209,88,.15);color:var(--green);}
+.badge.down{background:rgba(255,59,48,.15);color:var(--red);}
+.badge.teal{background:rgba(42,201,160,.15);color:var(--teal);}
+.badge.orange{background:rgba(255,149,0,.15);color:var(--orange);}
+.pill-sw{display:flex;background:rgba(255,255,255,.06);border:1px solid var(--border);border-radius:24px;padding:3px;margin:0 20px 16px;}
+.pb{flex:1;padding:9px 0;border:none;border-radius:20px;font-family:var(--font);font-size:13px;font-weight:700;color:var(--label3);cursor:pointer;background:transparent;transition:all .2s;}
+.pb.on{background:var(--teal);color:#fff;box-shadow:0 2px 12px rgba(42,201,160,.35);}
+.hero{margin:0 20px 14px;padding:18px;border-radius:22px;background:var(--card);border:1px solid var(--border);position:relative;overflow:hidden;}
+.hero::before{content:'';position:absolute;top:-50px;right:-50px;width:180px;height:180px;background:radial-gradient(circle,rgba(42,201,160,.12),transparent 70%);border-radius:50%;}
+.hamt{font-size:38px;font-weight:800;color:var(--label);letter-spacing:-1.2px;line-height:1;margin:6px 0 4px;}
+.hsub{font-size:13px;color:var(--label3);margin-bottom:14px;}
+.hdiv{height:.5px;background:var(--sep);margin-bottom:12px;}
+.hstats{display:flex;}
+.hs{flex:1;}.hs+.hs{border-left:.5px solid var(--sep);padding-left:12px;}
+.hs-v{font-size:14px;font-weight:700;color:var(--label);letter-spacing:-.3px;}
+.hs-l{font-size:10px;color:var(--label3);margin-top:2px;}
+.subcards{display:flex;gap:10px;padding:0 20px 4px;overflow-x:auto;scrollbar-width:none;}
+.subcards::-webkit-scrollbar{display:none;}
+.sc{flex-shrink:0;min-width:120px;background:var(--card);border:1px solid var(--border);border-radius:16px;padding:13px;}
+.sc-icon{font-size:18px;margin-bottom:6px;display:block;}
+.sc-val{font-size:15px;font-weight:800;color:var(--label);letter-spacing:-.3px;margin-bottom:2px;}
+.sc-lbl{font-size:10px;color:var(--label3);font-weight:500;}
+.hdots{display:flex;gap:3px;margin-top:5px;}
+.hd{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.12);}
+.hd.on{background:var(--teal);}
+.hd.today{background:var(--teal);box-shadow:0 0 0 2px rgba(42,201,160,.25);}
+.chk{width:28px;height:28px;border-radius:50%;border:2px solid rgba(255,255,255,.2);background:transparent;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;font-size:12px;color:white;}
+.chk.on{background:var(--teal);border-color:var(--teal);box-shadow:0 0 10px rgba(42,201,160,.4);}
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 20px;}
+.sg-card{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:16px;position:relative;overflow:hidden;}
+.sg-card::before{content:'';position:absolute;top:-20px;right:-20px;width:70px;height:70px;border-radius:50%;opacity:.12;}
+.sg-card.t::before{background:var(--teal);}
+.sg-card.b::before{background:var(--blue);}
+.sg-card.o::before{background:var(--btc);}
+.sg-card.g::before{background:var(--green);}
+.sg-icon{font-size:22px;margin-bottom:8px;display:block;}
+.sg-val{font-size:24px;font-weight:800;letter-spacing:-.8px;color:var(--label);line-height:1;margin-bottom:4px;}
+.sg-lbl{font-size:12px;font-weight:500;color:var(--label3);}
+.okr-card{margin:0 20px 10px;padding:16px;border-radius:20px;background:var(--card);border:1px solid var(--border);}
+.okr-period{font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--label3);margin-bottom:8px;}
+.okr-title{font-size:16px;font-weight:700;color:var(--label);letter-spacing:-.2px;margin-bottom:10px;}
+.kr{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+.kr-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
+.kr-txt{font-size:12px;color:var(--label2);flex:1;}
+.kr-pct{font-size:11px;font-weight:700;}
+.journal-entry{margin:0 20px 10px;padding:16px;border-radius:20px;background:var(--card);border:1px solid var(--border);}
+.je-date{font-size:11px;color:var(--label3);font-weight:600;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px;}
+.je-mood{font-size:22px;margin-bottom:8px;}
+.je-text{font-size:14px;color:var(--label2);line-height:1.6;}
+.je-tags{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;}
+.tag{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;}
+.dolar-chip{flex:1;background:var(--card);border:1px solid var(--border);border-radius:16px;padding:13px 12px;text-align:center;}
+.dolar-name{font-size:9px;font-weight:700;color:var(--label3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;}
+.dolar-val{font-size:16px;font-weight:800;color:var(--label);letter-spacing:-.4px;}
+.dolar-chg{font-size:10px;font-weight:600;margin-top:3px;}
+.ios-t{width:44px;height:26px;border-radius:13px;background:var(--teal);position:relative;cursor:pointer;flex-shrink:0;}
+.ios-t::after{content:'';position:absolute;top:2px;right:2px;width:22px;height:22px;border-radius:50%;background:white;box-shadow:0 1px 4px rgba(0,0,0,.3);}
+.ios-t.off{background:rgba(255,255,255,.15);}
+.ios-t.off::after{right:auto;left:2px;}
+.spacer{height:24px;}
+.inp{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:10px 14px;font-family:var(--font);font-size:15px;font-weight:600;color:var(--label);outline:none;width:100%;transition:border-color .2s;}
+.inp:focus{border-color:var(--teal);}
+.inp::placeholder{color:var(--label3);}
+select.inp option{background:#0f1e35;color:white;}
+
+/* ══ MÁS GRID OVERLAY ══ */
+.more-overlay{position:absolute;bottom:83px;left:0;right:0;background:rgba(10,22,40,.98);backdrop-filter:blur(30px);border-top:1px solid var(--border);border-radius:28px 28px 0 0;padding:20px 20px 8px;z-index:50;transform:translateY(100%);transition:transform .3s cubic-bezier(.32,.72,0,1);}
+.more-overlay.open{transform:translateY(0);}
+.more-handle{width:36px;height:4px;background:rgba(255,255,255,.2);border-radius:2px;margin:0 auto 18px;}
+.more-title{font-size:13px;font-weight:700;color:var(--label3);text-transform:uppercase;letter-spacing:1px;margin-bottom:14px;}
+.more-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+.mg-item{display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;padding:8px 4px;border-radius:16px;transition:background .15s;}
+.mg-item:active{background:rgba(255,255,255,.06);}
+.mg-icon{width:54px;height:54px;border-radius:18px;display:flex;align-items:center;justify-content:center;font-size:24px;}
+.mg-lbl{font-size:11px;font-weight:600;color:var(--label2);text-align:center;line-height:1.3;}
+
+/* ══ DCA TRACKER ══ */
+.dca-form{margin:0 20px 14px;padding:18px;border-radius:22px;background:var(--card);border:1px solid var(--border);}
+.dca-label{font-size:11px;font-weight:700;color:var(--label3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;}
+.dca-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;}
+.dca-result{background:linear-gradient(135deg,rgba(247,147,26,.15),rgba(42,201,160,.08));border:1px solid rgba(247,147,26,.25);border-radius:18px;padding:16px;margin:0 20px 14px;}
+.dca-big{font-size:32px;font-weight:800;letter-spacing:-1px;color:var(--label);}
+.dca-stats-row{display:flex;gap:0;margin-top:12px;}
+.dca-stat{flex:1;text-align:center;}
+.dca-stat+.dca-stat{border-left:.5px solid rgba(255,255,255,.1);}
+.dca-sv{font-size:16px;font-weight:800;color:var(--label);letter-spacing:-.3px;}
+.dca-sl{font-size:10px;color:var(--label3);margin-top:2px;}
+.calc-btn{width:100%;padding:14px;border-radius:14px;border:none;background:var(--btc);color:white;font-family:var(--font);font-size:16px;font-weight:800;cursor:pointer;letter-spacing:-.2px;transition:opacity .15s;margin-top:4px;}
+.calc-btn:active{opacity:.85;}
+.calc-btn:disabled{opacity:.5;cursor:not-allowed;}
+.loading-ring{width:20px;height:20px;border:3px solid rgba(255,255,255,.3);border-top-color:white;border-radius:50%;animation:spin .7s linear infinite;display:inline-block;vertical-align:middle;margin-right:8px;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.purchase-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:.5px solid var(--sep);}
+.purchase-row:last-child{border:none;}
+.pr-date{font-size:12px;font-weight:600;color:var(--label2);}
+.pr-price{font-size:11px;color:var(--label3);margin-top:1px;}
+.pr-btc{font-size:12px;font-weight:700;color:var(--btc);}
+.pr-val{font-size:11px;color:var(--label3);margin-top:1px;}
+.dca-chart-wrap{height:80px;margin-top:14px;position:relative;}
+.dca-chart-wrap canvas{width:100%!important;}
+
+/* Meta timeline */
+.meta-item{margin:0 20px 10px;padding:14px 16px;border-radius:18px;background:var(--card);border:1px solid var(--border);display:flex;align-items:center;gap:12px;}
+.meta-period{width:46px;height:46px;border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0;}
+.meta-p-lbl{font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;}
+.meta-p-val{font-size:16px;font-weight:800;}
+.meta-mid{flex:1;}
+.meta-title{font-size:14px;font-weight:700;color:var(--label);letter-spacing:-.2px;}
+.meta-sub{font-size:11px;color:var(--label3);margin-top:2px;}
+.meta-prog{font-size:12px;font-weight:700;}
+.week-bars{display:flex;justify-content:space-between;align-items:flex-end;gap:5px;height:50px;}
+.wbar-wrap{display:flex;flex-direction:column;align-items:center;gap:3px;flex:1;}
+.wbar{width:100%;border-radius:4px 4px 3px 3px;}
+.wbar-lbl{font-size:9px;font-weight:600;color:var(--label3);}
+.ring-wrap{position:relative;width:72px;height:72px;flex-shrink:0;}
+.ring-wrap svg{transform:rotate(-90deg);}
+.ring-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+.ring-pct{font-size:16px;font-weight:800;color:var(--label);letter-spacing:-.5px;}
+.ring-lbl{font-size:8px;color:var(--label3);text-transform:uppercase;letter-spacing:.3px;}
+.error-msg{font-size:13px;color:var(--red);text-align:center;padding:10px;font-weight:600;}
+</style>
+</head>
+<body>
+
+<p class="page-title">LifeOS 2026</p>
+<h1 class="page-heading">Navegación optimizada</h1>
+<p class="page-sub">4 tabs principales · ⋯ abre el menú de secciones</p>
+
+<div class="phone">
+  <div class="island"></div>
+  <div class="sbar"><span>9:41</span><span style="font-size:11px;color:rgba(255,255,255,.4)">▲▲▲ WiFi 🔋</span></div>
+
+  <!-- ═══ HOME ═══ -->
+  <div class="s on" id="s-home">
+    <div class="screen">
+      <div class="hdr-row">
+        <div><div class="hdr-date">Miércoles, 19 Mar</div><div class="hdr-title">Hola, Nico 👋</div></div>
+        <div class="av">N</div>
+      </div>
+      <div style="display:flex;gap:8px;padding:0 20px 14px;">
+        <div class="dolar-chip"><div class="dolar-name">💵 Blue</div><div class="dolar-val">$1.245</div><div class="dolar-chg" style="color:var(--green)">▲ +1.2%</div></div>
+        <div class="dolar-chip"><div class="dolar-name">₿ BTC</div><div class="dolar-val">$73.2K</div><div class="dolar-chg" style="color:var(--green)">▲ +2.3%</div></div>
+        <div class="dolar-chip"><div class="dolar-name">🔵 Oficial</div><div class="dolar-val">$1.012</div><div class="dolar-chg" style="color:var(--red)">▲ +0.3%</div></div>
+      </div>
+      <div class="sec-row" style="padding-top:0;"><div class="sec-t">Resumen</div></div>
+      <div class="stat-grid">
+        <div class="sg-card t"><span class="sg-icon">◎</span><div class="sg-val" style="color:var(--teal)">4/7</div><div class="sg-lbl">Hábitos hoy</div></div>
+        <div class="sg-card b"><span class="sg-icon">🔥</span><div class="sg-val" style="color:var(--blue)">12d</div><div class="sg-lbl">Racha actual</div></div>
+        <div class="sg-card o"><span class="sg-icon">₿</span><div class="sg-val" style="color:var(--btc)">$1.1M</div><div class="sg-lbl">Portfolio BTC</div></div>
+        <div class="sg-card g"><span class="sg-icon">💰</span><div class="sg-val" style="color:var(--green)">$1M</div><div class="sg-lbl">Ahorro 2026</div></div>
+      </div>
+      <div class="sec-row"><div class="sec-t">Hábitos hoy</div><div class="sec-a">Ver todos</div></div>
+      <div style="margin:0 20px;background:var(--card);border-radius:20px;border:1px solid var(--border);overflow:hidden;">
+        <div class="lrow"><div class="licon" style="background:rgba(42,201,160,.15)">🏋️</div><div class="lmid"><div class="lname">Ejercicio</div><div class="lsub" style="color:var(--green)">🔥 12 días</div></div><div class="chk on">✓</div></div>
+        <div class="lrow"><div class="licon" style="background:rgba(255,149,0,.15)">₿</div><div class="lmid"><div class="lname">Revisar BTC</div><div class="lsub" style="color:var(--green)">🔥 30 días</div></div><div class="chk on">✓</div></div>
+        <div class="lrow"><div class="licon" style="background:rgba(74,158,255,.15)">📚</div><div class="lmid"><div class="lname">Leer 30 min</div><div class="lsub">🔥 8 días</div></div><div class="chk"></div></div>
+      </div>
+      <div class="sec-row"><div class="sec-t">Meta del mes</div></div>
+      <div class="okr-card">
+        <div class="okr-period">🗓 Marzo 2026</div>
+        <div class="okr-title">Lanzar el emprendimiento</div>
+        <div class="kr"><div class="kr-dot" style="background:var(--teal)"></div><div class="kr-txt">Conseguir 3 clientes</div><div class="kr-pct" style="color:var(--teal)">1/3</div></div>
+        <div class="kr"><div class="kr-dot" style="background:var(--orange)"></div><div class="kr-txt">Facturar $500.000 ARS</div><div class="kr-pct" style="color:var(--orange)">20%</div></div>
+      </div>
+      <div class="spacer"></div>
+    </div>
+  </div>
+
+  <!-- ═══ HÁBITOS ═══ -->
+  <div class="s" id="s-habitos">
+    <div class="screen">
+      <div class="hdr-row"><div><div class="hdr-date">Miércoles, 19 Mar</div><div class="hdr-title">Hábitos</div></div><div class="av">N</div></div>
+      <div style="margin:0 20px 14px;padding:16px 18px;background:linear-gradient(135deg,rgba(42,201,160,.2),rgba(42,201,160,.05));border:1px solid rgba(42,201,160,.25);border-radius:20px;display:flex;align-items:center;gap:14px;">
+        <div style="font-size:36px">🔥</div>
+        <div style="flex:1"><div style="font-size:26px;font-weight:800;color:var(--label);letter-spacing:-.5px">12 días</div><div style="font-size:12px;color:var(--label3)">Racha actual · Récord: 21 días</div></div>
+        <div style="text-align:right"><div style="font-size:22px;font-weight:800;color:var(--teal)">3/5</div><div style="font-size:11px;color:var(--label3)">hoy</div></div>
+      </div>
+      <div style="margin:0 20px 14px;padding:16px;background:var(--card);border-radius:20px;border:1px solid var(--border);display:flex;align-items:center;gap:16px;">
+        <div class="ring-wrap"><svg width="72" height="72" viewBox="0 0 72 72"><circle cx="36" cy="36" r="28" stroke="rgba(255,255,255,.08)" stroke-width="5" fill="none"/><circle cx="36" cy="36" r="28" stroke="url(#rg1)" stroke-width="5" fill="none" stroke-dasharray="105 71" stroke-linecap="round"/><defs><linearGradient id="rg1" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#2ac9a0"/><stop offset="100%" stop-color="#00e090"/></linearGradient></defs></svg><div class="ring-center"><div class="ring-pct">60%</div><div class="ring-lbl">hoy</div></div></div>
+        <div style="flex:1"><div style="font-size:15px;font-weight:700;color:var(--label)">3 de 5 completados</div><div style="font-size:12px;color:var(--label3);margin-top:3px">2 hábitos pendientes</div><div class="pbar" style="margin-top:10px;height:4px"><div class="pfill" style="width:60%;background:linear-gradient(90deg,var(--teal),#00e090)"></div></div></div>
+      </div>
+      <div class="sec-row" style="padding-top:4px;"><div class="sec-t">Para hoy</div><div class="sec-a">+ Nuevo</div></div>
+      <div style="margin:0 20px;background:var(--card);border-radius:20px;border:1px solid var(--border);overflow:hidden;">
+        <div class="lrow"><div class="licon" style="background:rgba(42,201,160,.15)">🏋️</div><div class="lmid"><div class="lname">Ejercicio</div><div class="hdots"><div class="hd on"></div><div class="hd on"></div><div class="hd on"></div><div class="hd on"></div><div class="hd on"></div><div class="hd on"></div><div class="hd today"></div></div></div><div style="font-size:11px;font-weight:700;color:var(--teal);margin-right:8px">🔥12</div><div class="chk on">✓</div></div>
+        <div class="lrow"><div class="licon" style="background:rgba(255,149,0,.15)">₿</div><div class="lmid"><div class="lname">Revisar BTC</div><div class="hdots"><div class="hd on"></div><div class="hd on"></div><div class="hd on"></div><div class="hd on"></div><div class="hd on"></div><div class="hd on"></div><div class="hd today"></div></div></div><div style="font-size:11px;font-weight:700;color:var(--teal);margin-right:8px">🔥30</div><div class="chk on">✓</div></div>
+        <div class="lrow"><div class="licon" style="background:rgba(191,90,242,.15)">💰</div><div class="lmid"><div class="lname">Registrar gastos</div><div class="hdots"><div class="hd on"></div><div class="hd"></div><div class="hd on"></div><div class="hd on"></div><div class="hd on"></div><div class="hd on"></div><div class="hd today"></div></div></div><div style="font-size:11px;font-weight:700;color:var(--teal);margin-right:8px">🔥5</div><div class="chk on">✓</div></div>
+        <div class="lrow"><div class="licon" style="background:rgba(74,158,255,.15)">📚</div><div class="lmid"><div class="lname">Leer 30 min</div><div class="hdots"><div class="hd on"></div><div class="hd on"></div><div class="hd"></div><div class="hd on"></div><div class="hd on"></div><div class="hd on"></div><div class="hd" style="border:1.5px solid var(--teal)"></div></div></div><div class="chk"></div></div>
+        <div class="lrow"><div class="licon" style="background:rgba(48,209,88,.12)">🧘</div><div class="lmid"><div class="lname">Meditación</div><div class="hdots"><div class="hd"></div><div class="hd on"></div><div class="hd on"></div><div class="hd"></div><div class="hd on"></div><div class="hd"></div><div class="hd" style="border:1.5px solid var(--teal)"></div></div></div><div class="chk"></div></div>
+      </div>
+      <div class="sec-row"><div class="sec-t">Esta semana</div><div style="font-size:13px;font-weight:700;color:var(--teal)">82%</div></div>
+      <div style="margin:0 20px 16px;padding:16px;background:var(--card);border-radius:20px;border:1px solid var(--border);">
+        <div class="week-bars">
+          <div class="wbar-wrap"><div class="wbar" style="height:44px;background:var(--teal);opacity:.9"></div><div class="wbar-lbl">L</div></div>
+          <div class="wbar-wrap"><div class="wbar" style="height:36px;background:var(--teal);opacity:.75"></div><div class="wbar-lbl">M</div></div>
+          <div class="wbar-wrap"><div class="wbar" style="height:44px;background:var(--teal);opacity:.9"></div><div class="wbar-lbl">M</div></div>
+          <div class="wbar-wrap"><div class="wbar" style="height:44px;background:var(--teal)"></div><div class="wbar-lbl" style="color:var(--teal)">J✓</div></div>
+          <div class="wbar-wrap"><div class="wbar" style="height:8px;background:rgba(255,255,255,.1)"></div><div class="wbar-lbl">V</div></div>
+          <div class="wbar-wrap"><div class="wbar" style="height:4px;background:rgba(255,255,255,.06)"></div><div class="wbar-lbl">S</div></div>
+          <div class="wbar-wrap"><div class="wbar" style="height:4px;background:rgba(255,255,255,.06)"></div><div class="wbar-lbl">D</div></div>
+        </div>
+      </div>
+      <div class="spacer"></div>
+    </div>
+  </div>
+
+  <!-- ═══ FINANZAS ═══ -->
+  <div class="s" id="s-finanzas">
+    <div class="screen">
+      <div class="hdr-row"><div><div class="hdr-date">Marzo de 2026</div><div class="hdr-title">Finanzas</div></div><div class="av">N</div></div>
+      <div class="pill-sw">
+        <button class="pb on" onclick="showTab('fin','btc',this)">Crypto</button>
+        <button class="pb" onclick="showTab('fin','ahorros',this)">Ahorros</button>
+        <button class="pb" onclick="showTab('fin','dca',this)">DCA</button>
+      </div>
+
+      <!-- BTC TAB -->
+      <div id="fin-btc">
+        <div class="hero">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;"><div style="font-size:13px;color:var(--label2)">Portfolio Bitcoin</div><div style="display:flex;gap:6px;"><span class="badge teal">🇦🇷 ARS ⇅</span><span class="badge up">▲ +11.7%</span></div></div>
+          <div class="hamt">$703.486</div>
+          <div class="hsub">valor actual de tus BTC</div>
+          <div style="display:flex;gap:8px;margin-bottom:14px;">
+            <div style="padding:6px 12px;border-radius:20px;border:1.5px solid var(--teal);background:rgba(42,201,160,.12);font-size:12px;font-weight:700;color:var(--teal)">🇦🇷 ARS</div>
+            <div style="padding:6px 12px;border-radius:20px;border:1.5px solid rgba(255,255,255,.1);font-size:12px;font-weight:600;color:var(--label3)">🇺🇸 USD</div>
+            <div style="padding:6px 12px;border-radius:20px;border:1.5px solid rgba(255,255,255,.1);font-size:12px;font-weight:600;color:var(--label3)">₮ USDT</div>
+          </div>
+          <div class="hdiv"></div>
+          <div class="hstats">
+            <div class="hs"><div class="hs-v" style="color:var(--btc)">$630K</div><div class="hs-l">Invertido</div></div>
+            <div class="hs"><div class="hs-v">0.0069₿</div><div class="hs-l">Acumulado</div></div>
+            <div class="hs"><div class="hs-v">2/12</div><div class="hs-l">Compras</div></div>
+          </div>
+        </div>
+        <div class="subcards">
+          <div class="sc" style="border-color:rgba(247,147,26,.2)"><span class="sc-icon">₿</span><div class="sc-val" style="color:var(--btc)">$73.2K</div><div class="sc-lbl">USD/BTC</div></div>
+          <div class="sc"><span class="sc-icon">📈</span><div class="sc-val" style="color:var(--green)">+$73K</div><div class="sc-lbl">Ganancia</div></div>
+          <div class="sc"><span class="sc-icon">🎯</span><div class="sc-val">16.7%</div><div class="sc-lbl">Meta anual</div></div>
+          <div class="sc"><span class="sc-icon">💵</span><div class="sc-val">$1.245</div><div class="sc-lbl">$ Blue</div></div>
+        </div>
+        <div class="sec-row"><div class="sec-t">Mis compras</div><div class="sec-a">+ Registrar</div></div>
+        <div style="margin:0 20px;background:var(--card);border-radius:20px;border:1px solid var(--border);overflow:hidden;">
+          <div class="lrow"><div class="licon" style="background:rgba(247,147,26,.15)">₿</div><div class="lmid"><div class="lname">Febrero 2026</div><div class="lsub">0.00433 ₿ · $69.2K USD</div><div class="pbar"><div class="pfill" style="width:100%;background:var(--green)"></div></div></div><div class="lright"><div class="lval">$330K</div><div style="font-size:11px;color:var(--green);font-weight:600">▲ +14.2%</div></div></div>
+          <div class="lrow"><div class="licon" style="background:rgba(247,147,26,.15)">₿</div><div class="lmid"><div class="lname">Enero 2026</div><div class="lsub">0.00258 ₿ · $94.8K USD</div><div class="pbar"><div class="pfill" style="width:75%;background:var(--btc)"></div></div></div><div class="lright"><div class="lval">$300K</div><div style="font-size:11px;color:var(--green);font-weight:600">▲ +8.1%</div></div></div>
+          <div class="lrow" style="opacity:.4"><div class="licon" style="background:rgba(255,255,255,.06)">○</div><div class="lmid"><div class="lname">Marzo 2026</div><div class="lsub">Recordatorio: $300.000 ARS</div></div><div class="lright"><div class="lval" style="color:var(--label3)">—</div></div></div>
+        </div>
+        <div class="spacer"></div>
+      </div>
+
+      <!-- AHORROS TAB -->
+      <div id="fin-ahorros" style="display:none;">
+        <div class="hero">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;"><div style="font-size:13px;color:var(--label2)">Ahorros acumulados</div><span class="badge teal">✓ En meta</span></div>
+          <div class="hamt" style="color:var(--teal)">$1.000.000</div>
+          <div class="hsub">ahorrado en 2026</div>
+          <div style="display:flex;gap:8px;margin-bottom:14px;">
+            <div style="padding:6px 12px;border-radius:20px;border:1.5px solid var(--teal);background:rgba(42,201,160,.12);font-size:12px;font-weight:700;color:var(--teal)">🇦🇷 ARS</div>
+            <div style="padding:6px 12px;border-radius:20px;border:1.5px solid rgba(255,255,255,.1);font-size:12px;font-weight:600;color:var(--label3)">🇺🇸 USD</div>
+          </div>
+          <div class="hdiv"></div>
+          <div class="hstats">
+            <div class="hs"><div class="hs-v" style="color:var(--teal)">$500K</div><div class="hs-l">Meta mensual</div></div>
+            <div class="hs"><div class="hs-v">2/12</div><div class="hs-l">Meses OK</div></div>
+            <div class="hs"><div class="hs-v" style="color:var(--green)">100%</div><div class="hs-l">Cumplimiento</div></div>
+          </div>
+        </div>
+        <!-- Chart acumulado vs proyectado -->
+        <div style="margin:0 20px 14px;padding:16px;background:var(--card);border-radius:20px;border:1px solid var(--border);">
+          <div style="display:flex;justify-content:space-between;margin-bottom:12px;"><div><div style="font-size:13px;font-weight:700;color:var(--label)">Acumulado vs Meta</div><div style="font-size:11px;color:var(--label3);margin-top:2px">2026 · ARS</div></div><div style="text-align:right"><div style="font-size:13px;font-weight:700;color:var(--teal)">16.7%</div><div style="font-size:11px;color:var(--label3)">del año</div></div></div>
+          <svg width="100%" height="80" viewBox="0 0 333 80">
+            <defs><linearGradient id="ag2" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#2ac9a0" stop-opacity=".25"/><stop offset="100%" stop-color="#2ac9a0" stop-opacity="0"/></linearGradient></defs>
+            <path d="M0,80 L333,0" stroke="rgba(255,255,255,.1)" stroke-width="1.5" stroke-dasharray="5 4" fill="none"/>
+            <path d="M0,80 L55,67 L333,67 L333,80 Z" fill="url(#ag2)"/>
+            <path d="M0,80 L55,67" stroke="var(--teal)" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+            <circle cx="55" cy="67" r="5" fill="var(--teal)"/>
+            <circle cx="55" cy="67" r="11" fill="var(--teal)" opacity=".15"/>
+            <text x="62" y="63" font-size="10" fill="#2ac9a0" font-weight="700" font-family="Inter">$1M</text>
+            <text x="290" y="14" font-size="10" fill="rgba(255,255,255,.3)" font-family="Inter">$6M</text>
+          </svg>
+          <div style="display:flex;gap:16px;margin-top:6px;">
+            <div style="display:flex;align-items:center;gap:5px;"><div style="width:14px;height:2.5px;background:var(--teal);border-radius:2px"></div><span style="font-size:11px;color:var(--label3)">Real</span></div>
+            <div style="display:flex;align-items:center;gap:5px;"><div style="width:14px;height:2px;background:rgba(255,255,255,.2);border-radius:2px"></div><span style="font-size:11px;color:var(--label3)">Meta $6M</span></div>
+          </div>
+        </div>
+        <div class="sec-row"><div class="sec-t">Historial</div><div class="sec-a">+ Agregar</div></div>
+        <div style="margin:0 20px;background:var(--card);border-radius:20px;border:1px solid var(--border);overflow:hidden;">
+          <div class="lrow"><div class="licon" style="background:rgba(42,201,160,.15)">✓</div><div class="lmid"><div class="lname">Febrero 2026</div><div class="lsub">Completado · 28 Feb</div><div class="pbar"><div class="pfill" style="width:100%;background:var(--teal)"></div></div></div><div class="lright"><div class="lval" style="color:var(--teal)">$500K</div><div style="font-size:11px;color:var(--green);font-weight:600">✓ 100%</div></div></div>
+          <div class="lrow"><div class="licon" style="background:rgba(42,201,160,.15)">✓</div><div class="lmid"><div class="lname">Enero 2026</div><div class="lsub">Completado · 31 Ene</div><div class="pbar"><div class="pfill" style="width:100%;background:var(--teal)"></div></div></div><div class="lright"><div class="lval" style="color:var(--teal)">$500K</div><div style="font-size:11px;color:var(--green);font-weight:600">✓ 100%</div></div></div>
+          <div class="lrow" style="opacity:.4"><div class="licon" style="background:rgba(255,255,255,.06)">○</div><div class="lmid"><div class="lname">Marzo 2026</div><div class="lsub">Pendiente · 31 Mar</div></div><div class="lright"><div class="lval" style="color:var(--label3)">—</div></div></div>
+        </div>
+        <div class="spacer"></div>
+      </div>
+
+      <!-- DCA TAB -->
+      <div id="fin-dca" style="display:none;">
+        <div class="sec-row" style="padding-top:4px;"><div class="sec-t">Calculadora DCA</div><div style="font-size:11px;color:var(--label3)">bitcoin.com API</div></div>
+        <div class="dca-form">
+          <div class="dca-grid">
+            <div>
+              <div class="dca-label">Monto (USD)</div>
+              <input class="inp" id="dca-amount" type="number" value="100" min="1" placeholder="100">
+            </div>
+            <div>
+              <div class="dca-label">Frecuencia</div>
+              <select class="inp" id="dca-freq">
+                <option value="monthly">Mensual</option>
+                <option value="weekly">Semanal</option>
+                <option value="bi-weekly">Quincenal</option>
+                <option value="daily">Diario</option>
+              </select>
+            </div>
+            <div>
+              <div class="dca-label">Desde</div>
+              <input class="inp" id="dca-start" type="date" value="2023-01-01">
+            </div>
+            <div>
+              <div class="dca-label">Duración (años)</div>
+              <input class="inp" id="dca-duration" type="number" value="2" min="1" max="10" placeholder="2">
+            </div>
+          </div>
+          <button class="calc-btn" id="dca-btn" onclick="calcularDCA()">₿ &nbsp;Calcular DCA</button>
+          <div id="dca-error" class="error-msg" style="display:none;"></div>
+        </div>
+
+        <!-- Resultado -->
+        <div id="dca-result-wrap" style="display:none;">
+          <div class="dca-result">
+            <div style="font-size:12px;color:var(--label3);margin-bottom:4px">Valor actual del portfolio</div>
+            <div class="dca-big" id="res-value">—</div>
+            <div id="res-badge" style="display:inline-block;margin-top:6px;"></div>
+            <div class="dca-stats-row">
+              <div class="dca-stat"><div class="dca-sv" id="res-invested">—</div><div class="dca-sl">Invertido</div></div>
+              <div class="dca-stat"><div class="dca-sv" id="res-btc">—</div><div class="dca-sl">BTC acum.</div></div>
+              <div class="dca-stat"><div class="dca-sv" id="res-purchases">—</div><div class="dca-sl">Compras</div></div>
+              <div class="dca-stat"><div class="dca-sv" id="res-avg">—</div><div class="dca-sl">Precio prom.</div></div>
+            </div>
+          </div>
+
+          <!-- Chart simple -->
+          <div style="margin:0 20px 14px;padding:14px;background:var(--card);border-radius:20px;border:1px solid var(--border);">
+            <div style="font-size:13px;font-weight:700;color:var(--label);margin-bottom:10px">Valor acumulado vs Invertido</div>
+            <div style="position:relative;height:80px;">
+              <svg id="dca-svg" width="100%" height="80" viewBox="0 0 333 80" style="overflow:visible;">
+                <defs>
+                  <linearGradient id="dcag" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#f7931a" stop-opacity=".3"/>
+                    <stop offset="100%" stop-color="#f7931a" stop-opacity="0"/>
+                  </linearGradient>
+                </defs>
+                <text x="50%" y="40" text-anchor="middle" font-size="11" fill="rgba(255,255,255,.3)" font-family="Inter">Calculá para ver el gráfico</text>
+              </svg>
+            </div>
+          </div>
+
+          <!-- Últimas compras -->
+          <div class="sec-row" style="padding-top:0;"><div class="sec-t">Últimas compras</div><div id="res-total-label" style="font-size:12px;color:var(--label3)"></div></div>
+          <div style="margin:0 20px;background:var(--card);border-radius:20px;border:1px solid var(--border);padding:8px 16px;" id="dca-purchases-list"></div>
+        </div>
+        <div class="spacer"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ METAS ═══ -->
+  <div class="s" id="s-metas">
+    <div class="screen">
+      <div class="hdr-row"><div><div class="hdr-date">Planificación</div><div class="hdr-title">Mis Metas</div></div><div class="av">N</div></div>
+      <div class="pill-sw">
+        <button class="pb on">Anual</button>
+        <button class="pb">Mensual</button>
+        <button class="pb">Semanal</button>
+      </div>
+      <div style="margin:0 20px 12px;padding:18px;border-radius:22px;background:linear-gradient(135deg,rgba(191,90,242,.15),rgba(42,201,160,.08));border:1px solid rgba(191,90,242,.2);">
+        <div style="font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--purple);margin-bottom:6px">⭐ Visión 2026</div>
+        <div style="font-size:17px;font-weight:700;color:var(--label);margin-bottom:4px">"Este año construyo mi independencia económica y me mudo solo"</div>
+        <div style="font-size:12px;color:var(--label3)">Tu norte para todas las decisiones del año</div>
+      </div>
+      <div class="sec-row" style="padding-top:8px;"><div class="sec-t">Objetivos 2026</div><div class="sec-a">+ Nuevo</div></div>
+      <div class="meta-item"><div class="meta-period" style="background:rgba(42,201,160,.12)"><div class="meta-p-lbl" style="color:var(--teal)">Q1</div><div class="meta-p-val" style="color:var(--teal)">Mar</div></div><div class="meta-mid"><div class="meta-title">🚀 Lanzar emprendimiento</div><div class="meta-sub">Primeros clientes + facturación</div><div class="pbar"><div class="pfill" style="width:28%;background:var(--teal)"></div></div></div><div class="meta-prog" style="color:var(--teal)">28%</div></div>
+      <div class="meta-item"><div class="meta-period" style="background:rgba(255,55,95,.12)"><div class="meta-p-lbl" style="color:var(--pink)">Q2</div><div class="meta-p-val" style="color:var(--pink)">May</div></div><div class="meta-mid"><div class="meta-title">✈️ Vacaciones internacionales</div><div class="meta-sub">Destino + presupuesto</div><div class="pbar"><div class="pfill" style="width:10%;background:var(--pink)"></div></div></div><div class="meta-prog" style="color:var(--pink)">10%</div></div>
+      <div class="meta-item"><div class="meta-period" style="background:rgba(255,149,0,.12)"><div class="meta-p-lbl" style="color:var(--orange)">Q2</div><div class="meta-p-val" style="color:var(--orange)">Jun</div></div><div class="meta-mid"><div class="meta-title">💰 Facturar +$3M ARS/mes</div><div class="meta-sub">Escalar el negocio</div><div class="pbar"><div class="pfill" style="width:5%;background:var(--orange)"></div></div></div><div class="meta-prog" style="color:var(--orange)">5%</div></div>
+      <div class="meta-item"><div class="meta-period" style="background:rgba(191,90,242,.12)"><div class="meta-p-lbl" style="color:var(--purple)">Q3</div><div class="meta-p-val" style="color:var(--purple)">Jul</div></div><div class="meta-mid"><div class="meta-title">🏠 Mudarme solo</div><div class="meta-sub">Departamento propio</div><div class="pbar"><div class="pfill" style="width:8%;background:var(--purple)"></div></div></div><div class="meta-prog" style="color:var(--purple)">8%</div></div>
+      <div class="meta-item"><div class="meta-period" style="background:rgba(247,147,26,.12)"><div class="meta-p-lbl" style="color:var(--btc)">TODO</div><div class="meta-p-val" style="color:var(--btc)">₿</div></div><div class="meta-mid"><div class="meta-title">₿ 12 compras de BTC</div><div class="meta-sub">$300k ARS cada mes</div><div class="pbar"><div class="pfill" style="width:16%;background:var(--btc)"></div></div></div><div class="meta-prog" style="color:var(--btc)">2/12</div></div>
+      <div class="sec-row"><div class="sec-t">Sprint Marzo</div></div>
+      <div class="okr-card">
+        <div class="okr-period">🎯 Este mes</div>
+        <div class="okr-title">Lanzar y conseguir clientes</div>
+        <div class="kr"><div class="kr-dot" style="background:var(--teal)"></div><div class="kr-txt">Conseguir 3 clientes</div><div class="kr-pct" style="color:var(--teal)">1/3</div></div>
+        <div class="kr"><div class="kr-dot" style="background:var(--orange)"></div><div class="kr-txt">Facturar $500k</div><div class="kr-pct" style="color:var(--orange)">20%</div></div>
+        <div class="kr"><div class="kr-dot" style="background:var(--blue)"></div><div class="kr-txt">Publicar redes todos los días</div><div class="kr-pct" style="color:var(--blue)">60%</div></div>
+      </div>
+      <div class="spacer"></div>
+    </div>
+  </div>
+
+  <!-- ═══ MÁS OVERLAY ═══ -->
+  <div class="more-overlay" id="more-overlay">
+    <div class="more-handle"></div>
+    <div class="more-title">Más secciones</div>
+    <div class="more-grid">
+      <div class="mg-item" onclick="openSection('objetivos')">
+        <div class="mg-icon" style="background:rgba(74,158,255,.15)">🎯</div>
+        <div class="mg-lbl">Objetivos</div>
+      </div>
+      <div class="mg-item" onclick="openSection('agenda')">
+        <div class="mg-icon" style="background:rgba(42,201,160,.15)">📅</div>
+        <div class="mg-lbl">Agenda</div>
+      </div>
+      <div class="mg-item" onclick="openSection('journal')">
+        <div class="mg-icon" style="background:rgba(191,90,242,.15)">📓</div>
+        <div class="mg-lbl">Journal</div>
+      </div>
+      <div class="mg-item" onclick="openSection('focus')">
+        <div class="mg-icon" style="background:rgba(255,149,0,.15)">⏱</div>
+        <div class="mg-lbl">Focus</div>
+      </div>
+      <div class="mg-item" onclick="openSection('dolar')">
+        <div class="mg-icon" style="background:rgba(48,209,88,.15)">💵</div>
+        <div class="mg-lbl">Dólar</div>
+      </div>
+      <div class="mg-item" onclick="openSection('perfil')">
+        <div class="mg-icon" style="background:rgba(255,59,48,.12)">👤</div>
+        <div class="mg-lbl">Perfil</div>
+      </div>
+      <div class="mg-item" onclick="openSection('contactos')">
+        <div class="mg-icon" style="background:rgba(255,214,10,.12)">👥</div>
+        <div class="mg-lbl">Contactos</div>
+      </div>
+      <div class="mg-item" onclick="openSection('stats')">
+        <div class="mg-icon" style="background:rgba(247,147,26,.15)">📊</div>
+        <div class="mg-lbl">Stats 2026</div>
+      </div>
+    </div>
+    <div style="height:16px;"></div>
+  </div>
+
+  <!-- ═══ SECCIONES SECUNDARIAS ═══ -->
+  <div class="s" id="s-objetivos">
+    <div class="screen">
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 20px 12px;">
+        <div onclick="closeSection()" style="width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;">‹</div>
+        <div style="flex:1"><div class="hdr-title" style="font-size:22px;">Objetivos</div></div>
+      </div>
+      <div style="margin:0 20px 14px;padding:16px;background:var(--card);border-radius:20px;border:1px solid var(--border);display:flex;align-items:center;gap:16px;">
+        <div class="ring-wrap"><svg width="72" height="72" viewBox="0 0 72 72"><circle cx="36" cy="36" r="28" stroke="rgba(255,255,255,.08)" stroke-width="5" fill="none"/><circle cx="36" cy="36" r="28" stroke="url(#rg3)" stroke-width="5" fill="none" stroke-dasharray="100 76" stroke-linecap="round"/><defs><linearGradient id="rg3" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#7c6bff"/><stop offset="100%" stop-color="#2ac9a0"/></linearGradient></defs></svg><div class="ring-center"><div class="ring-pct">57%</div><div class="ring-lbl">logrado</div></div></div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:6px;">
+          <div style="display:flex;justify-content:space-between;"><span style="font-size:12px;color:var(--label2)">En progreso</span><span style="font-size:12px;font-weight:700;color:var(--blue)">4</span></div>
+          <div style="display:flex;justify-content:space-between;"><span style="font-size:12px;color:var(--label2)">Completados</span><span style="font-size:12px;font-weight:700;color:var(--teal)">1</span></div>
+          <div style="display:flex;justify-content:space-between;"><span style="font-size:12px;color:var(--label2)">Pendientes</span><span style="font-size:12px;font-weight:700;color:var(--label3)">2</span></div>
+        </div>
+      </div>
+      <div class="sec-row" style="padding-top:0;"><div class="sec-t">En progreso</div><div class="sec-a">+ Nuevo</div></div>
+      <div style="margin:0 20px;background:var(--card);border-radius:20px;border:1px solid var(--border);overflow:hidden;">
+        <div class="lrow"><div class="licon" style="background:rgba(42,201,160,.15)">🚀</div><div class="lmid"><div class="lname">Lanzar emprendimiento</div><div class="lsub">15 Mar · 24 días</div><div class="pbar"><div class="pfill" style="width:28%;background:var(--teal)"></div></div></div><div class="badge teal" style="margin-left:8px">28%</div></div>
+        <div class="lrow"><div class="licon" style="background:rgba(74,158,255,.15)">📱</div><div class="lmid"><div class="lname">Cambiar celular</div><div class="lsub">Mar — Abr</div><div class="pbar"><div class="pfill" style="width:40%;background:var(--blue)"></div></div></div><div class="badge" style="background:rgba(74,158,255,.15);color:var(--blue);margin-left:8px">40%</div></div>
+        <div class="lrow"><div class="licon" style="background:rgba(255,149,0,.15)">💰</div><div class="lmid"><div class="lname">Facturar +$3M/mes</div><div class="lsub">Junio · 4 meses</div><div class="pbar"><div class="pfill" style="width:5%;background:var(--orange)"></div></div></div><div class="badge orange" style="margin-left:8px">5%</div></div>
+        <div class="lrow"><div class="licon" style="background:rgba(191,90,242,.15)">🏠</div><div class="lmid"><div class="lname">Mudarme solo</div><div class="lsub">Julio · 5 meses</div><div class="pbar"><div class="pfill" style="width:8%;background:var(--purple)"></div></div></div><div class="badge" style="background:rgba(191,90,242,.15);color:var(--purple);margin-left:8px">8%</div></div>
+      </div>
+      <div class="spacer"></div>
+    </div>
+  </div>
+
+  <div class="s" id="s-journal">
+    <div class="screen">
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 20px 12px;">
+        <div onclick="closeSection()" style="width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;">‹</div>
+        <div class="hdr-title" style="font-size:22px;">Journal</div>
+      </div>
+      <div style="margin:0 20px 14px;padding:14px;background:var(--card);border-radius:20px;border:1px solid var(--border);">
+        <div style="font-size:12px;color:var(--label3);margin-bottom:10px;font-weight:600">¿Cómo estás hoy?</div>
+        <div style="display:flex;justify-content:space-between;">
+          <div style="text-align:center;cursor:pointer"><div style="font-size:26px">😤</div><div style="font-size:9px;color:var(--label3);margin-top:3px">Mal</div></div>
+          <div style="text-align:center;cursor:pointer"><div style="font-size:26px">😐</div><div style="font-size:9px;color:var(--label3);margin-top:3px">Regular</div></div>
+          <div style="text-align:center;cursor:pointer"><div style="font-size:26px">🙂</div><div style="font-size:9px;color:var(--label3);margin-top:3px">Bien</div></div>
+          <div style="text-align:center;cursor:pointer;border:2px solid var(--teal);border-radius:12px;padding:4px 8px"><div style="font-size:26px">😊</div><div style="font-size:9px;color:var(--teal);margin-top:3px;font-weight:700">Genial</div></div>
+          <div style="text-align:center;cursor:pointer"><div style="font-size:26px">🔥</div><div style="font-size:9px;color:var(--label3);margin-top:3px">Épico</div></div>
+        </div>
+      </div>
+      <div class="sec-row" style="padding-top:0;"><div class="sec-t">Entradas</div><div class="sec-a">+ Escribir</div></div>
+      <div class="journal-entry"><div class="je-date">Hoy · 19 Mar 2026</div><div class="je-mood">😊</div><div class="je-text">"Día muy productivo. Avancé con el emprendimiento, hice ejercicio. Reunión mañana con cliente potencial..."</div><div class="je-tags"><span class="tag" style="background:rgba(42,201,160,.12);color:var(--teal)">productivo</span><span class="tag" style="background:rgba(255,149,0,.12);color:var(--orange)">trabajo</span></div></div>
+      <div class="journal-entry" style="opacity:.6"><div class="je-date">18 Mar 2026</div><div class="je-mood">🙂</div><div class="je-text">"Buen día. Hice todos los hábitos, leí 40 min. El BTC sigue subiendo..."</div></div>
+      <div class="spacer"></div>
+    </div>
+  </div>
+
+  <div class="s" id="s-dolar">
+    <div class="screen">
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 20px 12px;">
+        <div onclick="closeSection()" style="width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;">‹</div>
+        <div class="hdr-title" style="font-size:22px;">Dólar</div>
+      </div>
+      <div class="hero"><div style="font-size:13px;color:var(--label2);margin-bottom:6px;">Dólar Blue</div><div class="hamt">$1.245</div><div class="hsub">ARS por 1 USD · hace 2 min</div><div class="hdiv"></div><div class="hstats"><div class="hs"><div class="hs-v" style="color:var(--green)">▲ +$15</div><div class="hs-l">Hoy</div></div><div class="hs"><div class="hs-v">$1.180</div><div class="hs-l">Hace 7d</div></div><div class="hs"><div class="hs-v">$980</div><div class="hs-l">Hace 30d</div></div></div></div>
+      <div style="margin:0 20px;background:var(--card);border-radius:20px;border:1px solid var(--border);overflow:hidden;">
+        <div class="lrow"><div class="licon" style="background:rgba(74,158,255,.15)">🔵</div><div class="lmid"><div class="lname">Oficial</div></div><div class="lright"><div class="lval">$1.012</div><div style="font-size:11px;color:var(--red)">▲ +$3</div></div></div>
+        <div class="lrow"><div class="licon" style="background:rgba(48,209,88,.15)">💵</div><div class="lmid"><div class="lname">Blue</div></div><div class="lright"><div class="lval" style="color:var(--green)">$1.245</div><div style="font-size:11px;color:var(--green)">▲ +$15</div></div></div>
+        <div class="lrow"><div class="licon" style="background:rgba(255,214,10,.15)">📊</div><div class="lmid"><div class="lname">MEP / Bolsa</div></div><div class="lright"><div class="lval">$1.198</div><div style="font-size:11px;color:var(--green)">▲ +$8</div></div></div>
+        <div class="lrow"><div class="licon" style="background:rgba(191,90,242,.15)">🌍</div><div class="lmid"><div class="lname">CCL / Cable</div></div><div class="lright"><div class="lval">$1.215</div><div style="font-size:11px;color:var(--green)">▲ +$10</div></div></div>
+        <div class="lrow"><div class="licon" style="background:rgba(247,147,26,.15)">₿</div><div class="lmid"><div class="lname">Cripto P2P</div></div><div class="lright"><div class="lval">$1.238</div><div style="font-size:11px;color:var(--red)">▼ -$2</div></div></div>
+      </div>
+      <div class="spacer"></div>
+    </div>
+  </div>
+
+  <div class="s" id="s-focus"><div class="screen"><div style="display:flex;align-items:center;gap:10px;padding:8px 20px 20px;"><div onclick="closeSection()" style="width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;">‹</div><div class="hdr-title" style="font-size:22px;">Focus</div></div><div style="display:flex;flex-direction:column;align-items:center;padding:0 20px 24px;"><div style="width:160px;height:160px;border-radius:50%;background:var(--card2);border:3px solid rgba(42,201,160,.3);display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:0 0 40px rgba(42,201,160,.15);"><div style="font-size:44px;font-weight:800;color:var(--label);letter-spacing:-2px;">25:00</div><div style="font-size:12px;color:var(--label3)">Pomodoro</div></div><div style="display:flex;gap:12px;margin-top:20px;"><div style="width:52px;height:52px;border-radius:50%;background:rgba(255,255,255,.07);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:20px;cursor:pointer;">↩</div><div style="width:64px;height:64px;border-radius:50%;background:var(--teal);display:flex;align-items:center;justify-content:center;font-size:24px;cursor:pointer;box-shadow:0 4px 20px rgba(42,201,160,.4);">▶</div><div style="width:52px;height:52px;border-radius:50%;background:rgba(255,255,255,.07);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:20px;cursor:pointer;">⏭</div></div></div><div class="spacer"></div></div></div>
+
+  <div class="s" id="s-agenda"><div class="screen"><div style="display:flex;align-items:center;gap:10px;padding:8px 20px 12px;"><div onclick="closeSection()" style="width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;">‹</div><div class="hdr-title" style="font-size:22px;">Agenda</div></div><div class="sec-row" style="padding-top:0;"><div class="sec-t">Hoy · 19 Mar</div><div class="sec-a">+ Agregar</div></div><div style="margin:0 20px;background:var(--card);border-radius:20px;border:1px solid var(--border);overflow:hidden;"><div class="lrow"><div style="width:3px;height:36px;background:var(--teal);border-radius:3px;flex-shrink:0"></div><div class="lmid"><div class="lname">Sesión trabajo - Emprendimiento</div><div class="lsub">09:00 — 12:00</div></div></div><div class="lrow"><div style="width:3px;height:36px;background:var(--btc);border-radius:3px;flex-shrink:0"></div><div class="lmid"><div class="lname">Compra mensual BTC</div><div class="lsub">Recordatorio · $300.000 ARS</div></div></div><div class="lrow"><div style="width:3px;height:36px;background:var(--blue);border-radius:3px;flex-shrink:0"></div><div class="lmid"><div class="lname">Reunión cliente potencial</div><div class="lsub">15:00 — 16:00</div></div></div></div><div class="spacer"></div></div></div>
+
+  <div class="s" id="s-perfil"><div class="screen"><div style="display:flex;align-items:center;gap:10px;padding:8px 20px 12px;"><div onclick="closeSection()" style="width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;">‹</div><div class="hdr-title" style="font-size:22px;">Perfil</div></div><div style="text-align:center;padding:20px;"><div style="width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,var(--teal),var(--blue));display:flex;align-items:center;justify-content:center;font-size:32px;margin:0 auto 12px;">N</div><div style="font-size:20px;font-weight:800;color:var(--label)">Nicolás</div><div style="font-size:13px;color:var(--label3);margin-top:4px">Miembro desde Enero 2026</div></div><div style="margin:0 20px;background:var(--card);border-radius:20px;border:1px solid var(--border);overflow:hidden;"><div class="lrow"><div class="licon" style="background:rgba(255,255,255,.06)">🌙</div><div class="lmid"><div class="lname">Tema oscuro</div></div><div class="ios-t"></div></div><div class="lrow"><div class="licon" style="background:rgba(42,201,160,.12)">🔔</div><div class="lmid"><div class="lname">Notificaciones</div></div><div class="ios-t"></div></div><div class="lrow"><div class="licon" style="background:rgba(74,158,255,.12)">🔒</div><div class="lmid"><div class="lname">Privacidad</div></div><div class="lchev">›</div></div></div><div class="spacer"></div></div></div>
+
+  <div class="s" id="s-contactos"><div class="screen"><div style="display:flex;align-items:center;gap:10px;padding:8px 20px 12px;"><div onclick="closeSection()" style="width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;">‹</div><div class="hdr-title" style="font-size:22px;">Contactos</div></div><div class="sec-row" style="padding-top:0;"><div class="sec-t">Personas importantes</div><div class="sec-a">+ Agregar</div></div><div style="margin:0 20px;background:var(--card);border-radius:20px;border:1px solid var(--border);overflow:hidden;"><div class="lrow"><div style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,var(--teal),var(--blue));display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">👴</div><div class="lmid"><div class="lname">Papá</div><div class="lsub">Llamar cada 2 semanas</div></div><div class="badge" style="background:rgba(255,59,48,.15);color:var(--red)">3 días</div></div><div class="lrow"><div style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,var(--purple),var(--pink));display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">👤</div><div class="lmid"><div class="lname">Mentor</div><div class="lsub">Reunión mensual</div></div><div class="badge teal">En 12 días</div></div></div><div class="spacer"></div></div></div>
+
+  <div class="s" id="s-stats"><div class="screen"><div style="display:flex;align-items:center;gap:10px;padding:8px 20px 12px;"><div onclick="closeSection()" style="width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;">‹</div><div class="hdr-title" style="font-size:22px;">Stats 2026</div></div><div style="margin:0 20px 14px;padding:18px;background:linear-gradient(135deg,rgba(191,90,242,.15),rgba(42,201,160,.08));border:1px solid rgba(191,90,242,.2);border-radius:22px;text-align:center;"><div style="font-size:36px;margin-bottom:8px">⚡</div><div style="font-size:20px;font-weight:800;color:var(--label);margin-bottom:4px">78 días de LifeOS</div><div style="font-size:13px;color:var(--label3)">Q1 2026 · En camino</div></div><div class="stat-grid"><div class="sg-card t"><span class="sg-icon">🔥</span><div class="sg-val" style="color:var(--teal)">82%</div><div class="sg-lbl">Hábitos</div></div><div class="sg-card b"><span class="sg-icon">⏱</span><div class="sg-val" style="color:var(--blue)">42h</div><div class="sg-lbl">Focus</div></div><div class="sg-card o"><span class="sg-icon">₿</span><div class="sg-val" style="color:var(--btc)">2</div><div class="sg-lbl">Compras BTC</div></div><div class="sg-card g"><span class="sg-icon">📝</span><div class="sg-val" style="color:var(--green)">31</div><div class="sg-lbl">Journals</div></div></div><div class="spacer"></div></div></div>
+
+  <!-- BOTTOM NAV -->
+  <div class="bnav">
+    <div class="ni on" id="nav-home" onclick="navTo('home')">
+      <div class="ni-icon-wrap">⊞</div><div class="nlbl">Home</div>
+    </div>
+    <div class="ni" id="nav-habitos" onclick="navTo('habitos')">
+      <div class="ni-icon-wrap"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg></div>
+      <div class="nlbl">Hábitos</div>
+    </div>
+    <div class="ni" id="nav-finanzas" onclick="navTo('finanzas')">
+      <div class="ni-icon-wrap" style="font-size:20px;">₿</div>
+      <div class="nlbl">Finanzas</div>
+    </div>
+    <div class="ni" id="nav-metas" onclick="navTo('metas')">
+      <div class="ni-icon-wrap" style="font-size:20px;">🚀</div>
+      <div class="nlbl">Metas</div>
+    </div>
+    <div class="ni" id="nav-more" onclick="toggleMore()">
+      <div class="ni-icon-wrap" style="font-size:20px; letter-spacing:2px">•••</div>
+      <div class="nlbl">Más</div>
+    </div>
+  </div>
+</div>
+
+<script>
+let prevScreen = 'home'
+let moreOpen = false
+
+function navTo(id) {
+  document.querySelectorAll('.s').forEach(s => s.classList.remove('on'))
+  document.getElementById('s-' + id).classList.add('on')
+  document.querySelectorAll('.ni').forEach(n => n.classList.remove('on'))
+  document.getElementById('nav-' + (id === 'metas' ? 'metas' : id === 'habitos' ? 'habitos' : id === 'finanzas' ? 'finanzas' : 'home')).classList.add('on')
+  closeMoreMenu()
+  prevScreen = id
+}
+
+function toggleMore() {
+  moreOpen = !moreOpen
+  document.getElementById('more-overlay').classList.toggle('open', moreOpen)
+  document.querySelectorAll('.ni').forEach(n => n.classList.remove('on'))
+  if (moreOpen) document.getElementById('nav-more').classList.add('on')
+  else {
+    document.querySelectorAll('.ni').forEach(n => n.classList.remove('on'))
+    const m = {home:'nav-home',habitos:'nav-habitos',finanzas:'nav-finanzas',metas:'nav-metas'}
+    if (m[prevScreen]) document.getElementById(m[prevScreen]).classList.add('on')
+  }
+}
+
+function closeMoreMenu() {
+  moreOpen = false
+  document.getElementById('more-overlay').classList.remove('open')
+}
+
+function openSection(id) {
+  closeMoreMenu()
+  document.querySelectorAll('.s').forEach(s => s.classList.remove('on'))
+  document.getElementById('s-' + id).classList.add('on')
+  document.querySelectorAll('.ni').forEach(n => n.classList.remove('on'))
+  document.getElementById('nav-more').classList.add('on')
+}
+
+function closeSection() {
+  document.querySelectorAll('.s').forEach(s => s.classList.remove('on'))
+  document.getElementById('s-' + prevScreen).classList.add('on')
+  document.querySelectorAll('.ni').forEach(n => n.classList.remove('on'))
+  const m = {home:'nav-home',habitos:'nav-habitos',finanzas:'nav-finanzas',metas:'nav-metas'}
+  if (m[prevScreen]) document.getElementById(m[prevScreen]).classList.add('on')
+}
+
+function showTab(prefix, tabId, btn) {
+  document.querySelectorAll(`[id^="${prefix}-"]`).forEach(el => el.style.display = 'none')
+  document.getElementById(`${prefix}-${tabId}`).style.display = 'block'
+  btn.closest('.pill-sw').querySelectorAll('.pb').forEach(b => b.classList.remove('on'))
+  btn.classList.add('on')
+}
+
+// ═══ DCA CALCULATOR ═══
+async function calcularDCA() {
+  const amount = parseFloat(document.getElementById('dca-amount').value)
+  const frequency = document.getElementById('dca-freq').value
+  const startDate = document.getElementById('dca-start').value
+  const duration = parseFloat(document.getElementById('dca-duration').value)
+
+  const errorEl = document.getElementById('dca-error')
+  const btn = document.getElementById('dca-btn')
+  errorEl.style.display = 'none'
+
+  if (!amount || !startDate || !duration) {
+    errorEl.textContent = 'Completá todos los campos'
+    errorEl.style.display = 'block'
+    return
+  }
+
+  // Check date
+  const start = new Date(startDate)
+  const end = new Date(start)
+  end.setFullYear(end.getFullYear() + duration)
+  if (end > new Date()) {
+    errorEl.textContent = 'La fecha de fin no puede ser mayor a hoy'
+    errorEl.style.display = 'block'
+    return
+  }
+
+  btn.disabled = true
+  btn.innerHTML = '<span class="loading-ring"></span> Calculando...'
+
+  try {
+    const res = await fetch('https://charts.bitcoin.com/api/v1/charts/dca/calculate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ amount, frequency, duration, startDate })
+    })
+
+    if (!res.ok) throw new Error(`Error ${res.status}`)
+    const data = await res.json()
+
+    if (!data.metrics) throw new Error('Respuesta inválida de la API')
+
+    const m = data.metrics
+    const pct = m.percentageChange
+    const isProfit = pct >= 0
+
+    // Fill results
+    document.getElementById('res-value').textContent = '$' + Math.round(m.totalValue).toLocaleString()
+    document.getElementById('res-invested').textContent = '$' + Math.round(m.totalInvested).toLocaleString()
+    document.getElementById('res-btc').textContent = parseFloat(m.totalBTC).toFixed(6) + ' ₿'
+    document.getElementById('res-purchases').textContent = m.numberOfPurchases
+    document.getElementById('res-avg').textContent = '$' + Math.round(m.averagePrice).toLocaleString()
+    document.getElementById('res-total-label').textContent = `${m.numberOfPurchases} total`
+
+    const badge = document.getElementById('res-badge')
+    badge.className = 'badge ' + (isProfit ? 'up' : 'down')
+    badge.textContent = (isProfit ? '▲ +' : '▼ ') + Math.abs(pct).toFixed(1) + '%'
+
+    // Draw chart
+    if (data.data?.purchases?.length > 1) {
+      drawDCAChart(data.data.purchases)
+    }
+
+    // Fill purchases list (last 5)
+    const list = document.getElementById('dca-purchases-list')
+    const purchases = data.data?.purchases || []
+    const last5 = purchases.slice(-5).reverse()
+    list.innerHTML = last5.map(p => {
+      const date = new Date(p.timestamp || p.date).toLocaleDateString('es-AR', {day:'2-digit',month:'short',year:'numeric'})
+      const gainPct = p.currentValue ? ((p.currentValue - p.usdSpent) / p.usdSpent * 100).toFixed(1) : null
+      return `<div class="purchase-row">
+        <div><div class="pr-date">${date}</div><div class="pr-price">$${Math.round(p.price || p.btcPrice).toLocaleString()} USD/BTC</div></div>
+        <div style="text-align:right"><div class="pr-btc">${parseFloat(p.btcPurchased || p.btc).toFixed(6)} ₿</div><div class="pr-val">$${Math.round(p.usdSpent || amount)} USD${gainPct ? ` · ${gainPct >= 0 ? '+' : ''}${gainPct}%` : ''}</div></div>
+      </div>`
+    }).join('')
+
+    document.getElementById('dca-result-wrap').style.display = 'block'
+
+  } catch (err) {
+    errorEl.textContent = 'No se pudo conectar con la API. Intentá de nuevo.'
+    errorEl.style.display = 'block'
+  } finally {
+    btn.disabled = false
+    btn.innerHTML = '₿ &nbsp;Recalcular'
+  }
+}
+
+function drawDCAChart(purchases) {
+  const svg = document.getElementById('dca-svg')
+  const W = 333, H = 80, pad = 10
+
+  const invested = purchases.map((p, i) => (i + 1) * (p.usdSpent || 100))
+  const values = purchases.map(p => p.portfolioValue || p.totalValue || p.currentValue || 0)
+
+  const maxVal = Math.max(...values, ...invested) * 1.1
+  const minVal = 0
+
+  const toX = (i) => pad + (i / (purchases.length - 1)) * (W - pad * 2)
+  const toY = (v) => H - pad - ((v - minVal) / (maxVal - minVal)) * (H - pad * 2)
+
+  // Invested line (straight)
+  const ix0 = toX(0), iy0 = toY(invested[0])
+  const ixN = toX(purchases.length - 1), iyN = toY(invested[purchases.length - 1])
+
+  // Value path
+  const vPath = purchases.map((p, i) => {
+    const x = toX(i), y = toY(values[i])
+    return `${i === 0 ? 'M' : 'L'}${x},${y}`
+  }).join(' ')
+
+  const vArea = vPath + ` L${toX(purchases.length-1)},${H} L${toX(0)},${H} Z`
+
+  svg.innerHTML = `
+    <defs>
+      <linearGradient id="dcag2" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#f7931a" stop-opacity=".3"/>
+        <stop offset="100%" stop-color="#f7931a" stop-opacity="0"/>
+      </linearGradient>
+    </defs>
+    <path d="${vArea}" fill="url(#dcag2)"/>
+    <line x1="${ix0}" y1="${iy0}" x2="${ixN}" y2="${iyN}" stroke="rgba(255,255,255,.2)" stroke-width="1.5" stroke-dasharray="4 3"/>
+    <path d="${vPath}" fill="none" stroke="#f7931a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="${toX(purchases.length-1)}" cy="${toY(values[values.length-1])}" r="4" fill="#f7931a"/>
+    <circle cx="${toX(purchases.length-1)}" cy="${toY(values[values.length-1])}" r="9" fill="#f7931a" opacity=".15"/>
+  `
+}
+</script>
+</body>
+</html>

@@ -1,11 +1,14 @@
 import React, { useState, useCallback } from 'react';
 import {
     View, Text, StyleSheet, ScrollView,
-    TouchableOpacity, RefreshControl, Dimensions, ActivityIndicator,
+    TouchableOpacity, RefreshControl, Dimensions, ActivityIndicator, Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useHabits, HabitWithLog } from '../hooks/useHabits';
 import AddHabitModal from '../components/AddHabitModal';
+import EditHabitModal from '../components/EditHabitModal';
+import SwipeableRow from '../components/SwipeableRow';
+import GlowBackground from '../components/GlowBackground';
 
 const { width } = Dimensions.get('window');
 
@@ -14,8 +17,9 @@ const DAYS_ES = ['D', 'L', 'M', 'X', 'J', 'V', 'S'];
 export default function HabitosScreen() {
     const today = new Date();
     const [selectedDate, setSelectedDate] = useState(today);
-    const { habits, loading, error, refresh, toggleHabit, deleteHabit, stats } = useHabits(selectedDate);
+    const { habits, loading, error, refresh, toggleHabit, deleteHabit, updateHabit, stats } = useHabits(selectedDate);
     const [showAddModal, setShowAddModal] = useState(false);
+    const [editingHabit, setEditingHabit] = useState<HabitWithLog | null>(null);
     const [refreshing, setRefreshing] = useState(false);
 
     const onRefresh = useCallback(async () => {
@@ -36,7 +40,7 @@ export default function HabitosScreen() {
         : 0;
 
     return (
-        <View style={styles.container}>
+        <GlowBackground variant="habits">
             <ScrollView
                 contentContainerStyle={styles.scroll}
                 showsVerticalScrollIndicator={false}
@@ -110,12 +114,21 @@ export default function HabitosScreen() {
                 )}
 
                 {habits.map((habit) => (
-                    <HabitCard
+                    <SwipeableRow
                         key={habit.id}
-                        habit={habit}
-                        onToggle={() => toggleHabit(habit.id, !!habit.log?.completed)}
-                        onDelete={() => deleteHabit(habit.id)}
-                    />
+                        onDelete={() => {
+                            Alert.alert('Eliminar hábito', `¿Eliminar "${habit.name}"?`, [
+                                { text: 'Cancelar', style: 'cancel' },
+                                { text: 'Eliminar', style: 'destructive', onPress: () => deleteHabit(habit.id) },
+                            ]);
+                        }}
+                    >
+                        <HabitCard
+                            habit={habit}
+                            onToggle={() => toggleHabit(habit.id, !!habit.log?.completed)}
+                            onEdit={() => setEditingHabit(habit)}
+                        />
+                    </SwipeableRow>
                 ))}
 
                 {/* Stats bottom cards */}
@@ -150,23 +163,35 @@ export default function HabitosScreen() {
                 onClose={() => setShowAddModal(false)}
                 onCreated={() => { setShowAddModal(false); refresh(); }}
             />
-        </View>
+            <EditHabitModal
+                visible={!!editingHabit}
+                habit={editingHabit}
+                onClose={() => setEditingHabit(null)}
+                onSave={async (id, updates) => {
+                    await updateHabit(id, updates);
+                }}
+            />
+        </GlowBackground>
     );
 }
 
 /* ── Sub-components ─────────────────────────────────────── */
 
 function HabitCard({
-    habit, onToggle, onDelete,
+    habit, onToggle, onEdit,
 }: {
     habit: HabitWithLog;
     onToggle: () => void;
-    onDelete: () => void;
+    onEdit: () => void;
 }) {
     const done = !!habit.log?.completed;
 
     return (
-        <View style={[styles.habitCard, done && styles.habitCardDone]}>
+        <TouchableOpacity
+            style={[styles.habitCard, done && styles.habitCardDone]}
+            onPress={onEdit}
+            activeOpacity={0.7}
+        >
             {/* Icon */}
             <View style={[styles.habitIcon, { backgroundColor: habit.color + '22' }]}>
                 <Text style={styles.habitIconEmoji}>{habit.icon}</Text>
@@ -181,20 +206,15 @@ function HabitCard({
                 </View>
             </View>
 
-            {/* Delete */}
-            <TouchableOpacity onPress={onDelete} style={styles.deleteBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                <Ionicons name="trash-outline" size={16} color="#555570" />
-            </TouchableOpacity>
-
             {/* Check */}
             <TouchableOpacity
-                onPress={onToggle}
+                onPress={(e) => { e.stopPropagation(); onToggle(); }}
                 style={[styles.checkBtn, done && { backgroundColor: habit.color, borderColor: habit.color }]}
                 activeOpacity={0.7}
             >
                 {done && <Ionicons name="checkmark" size={18} color="#FFF" />}
             </TouchableOpacity>
-        </View>
+        </TouchableOpacity>
     );
 }
 
