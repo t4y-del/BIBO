@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../config/supabase';
+import { useAuth } from '../contexts/AuthContext';
 import type { HabitWithLog } from './useHabits';
 import type { Objective } from './useObjectives';
 
@@ -20,7 +21,6 @@ export interface AgendaEvent {
 export interface AgendaDay {
     date: string;
     habits: HabitWithLog[];
-    /** Objectives whose deadline falls on this exact date */
     objectives: Objective[];
     events: AgendaEvent[];
     hasContent: boolean;
@@ -36,34 +36,31 @@ function toDateStr(d: Date) {
 /* ── Hook ───────────────────────────────────────────────── */
 
 export function useAgenda(date: Date = new Date()) {
+    const userId = useAuth();
     const dateStr = toDateStr(date);
     const [agenda, setAgenda] = useState<AgendaDay | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    // dot maps — keyed by YYYY-MM-DD, value = color hex
     const [eventDots, setEventDots] = useState<Map<string, string>>(new Map());
     const [objectiveDeadlines, setObjectiveDeadlines] = useState<Map<string, string>>(new Map());
 
-    // track which month we last loaded dots for so we refresh automatically
     const loadedMonth = useRef<string>('');
 
     /* ── fetch day data ─────────────────────────────────── */
     const fetchDay = useCallback(async () => {
+        if (!userId) { setLoading(false); return; }
         setLoading(true);
         setError(null);
         try {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) return;
-
             const [habitsRes, logsRes, eventsRes, objectivesRes] = await Promise.all([
-                supabase.from('habits').select('*').eq('user_id', user.id).eq('is_active', true),
-                supabase.from('habit_logs').select('*').eq('user_id', user.id).eq('log_date', dateStr),
+                supabase.from('habits').select('*').eq('user_id', userId).eq('is_active', true),
+                supabase.from('habit_logs').select('*').eq('user_id', userId).eq('log_date', dateStr),
                 supabase.from('agenda_events').select('*')
-                    .eq('user_id', user.id).eq('event_date', dateStr).order('event_time'),
+                    .eq('user_id', userId).eq('event_date', dateStr).order('event_time'),
                 supabase.from('objectives')
                     .select('*, tasks:objective_tasks(*)')
-                    .eq('user_id', user.id)
+                    .eq('user_id', userId)
                     .eq('deadline', dateStr)
                     .neq('status', 'completed'),
             ]);
@@ -74,17 +71,14 @@ export function useAgenda(date: Date = new Date()) {
 
             const logMap = new Map((logsRes.data ?? []).map((l: any) => [l.habit_id, l]));
             const habitsWithLogs: HabitWithLog[] = (habitsRes.data ?? []).map((h: any) => ({
-                ...h,
-                log: logMap.get(h.id) ?? null,
-                streak: 0,
+                ...h, log: logMap.get(h.id) ?? null, streak: 0,
             }));
 
             setAgenda({
                 date: dateStr,
                 habits: habitsWithLogs,
                 objectives: (objectivesRes.data ?? []).map((o: any) => ({
-                    ...o,
-                    tasks: (o.tasks ?? []).sort((a: any, b: any) => a.sort_order - b.sort_order),
+                    ...o, tasks: (o.tasks ?? []).sort((a: any, b: any) => a.sort_order - b.sort_order),
                 })),
                 events: eventsRes.data ?? [],
                 hasContent:
@@ -97,13 +91,11 @@ export function useAgenda(date: Date = new Date()) {
         } finally {
             setLoading(false);
         }
-    }, [dateStr]);
+    }, [userId, dateStr]);
 
     /* ── fetch month dots ───────────────────────────────── */
     const fetchMonthDots = useCallback(async (year: number, month: number) => {
-        const monthKey = `${year}-${month}`;
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
+        if (!userId) return;
 
         const start = `${year}-${String(month).padStart(2, '0')}-01`;
         const end = `${year}-${String(month).padStart(2, '0')}-31`;
@@ -111,12 +103,12 @@ export function useAgenda(date: Date = new Date()) {
         const [eventsRes, objectivesRes] = await Promise.all([
             supabase.from('agenda_events')
                 .select('event_date, color')
-                .eq('user_id', user.id)
+                .eq('user_id', userId)
                 .gte('event_date', start)
                 .lte('event_date', end),
             supabase.from('objectives')
                 .select('deadline, color')
-                .eq('user_id', user.id)
+                .eq('user_id', userId)
                 .neq('status', 'completed')
                 .gte('deadline', start)
                 .lte('deadline', end)
@@ -133,18 +125,16 @@ export function useAgenda(date: Date = new Date()) {
             if (obj.deadline) deadlineMap.set(obj.deadline, obj.color ?? '#6C63FF');
         }
 
-        // Use functional update so stale state is never an issue
         setEventDots(evtMap);
         setObjectiveDeadlines(deadlineMap);
-        loadedMonth.current = monthKey;
-    }, []);
+        loadedMonth.current = `${year}-${month}`;
+    }, [userId]);
 
     /* ── auto-load dots for the month of the current view date ── */
     useEffect(() => {
         const y = date.getFullYear();
         const m = date.getMonth() + 1;
         const key = `${y}-${m}`;
-        // Always reload dots when the date's month changes
         if (loadedMonth.current !== key) {
             fetchMonthDots(y, m);
         }
@@ -158,76 +148,96 @@ export function useAgenda(date: Date = new Date()) {
         title: string; description?: string; event_date: string;
         event_time?: string; color?: string; type?: AgendaEvent['type'];
     }) => {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) throw new Error('No session');
-        const { error: err } = await supabase.from('agenda_events').insert({
-            user_id: user.id, ...params,
-        });
-        if (err) throw err;
-        // Refresh both the day view AND the dots for this month
-        const d = new Date(params.event_date + 'T12:00:00');
-        await Promise.all([
-            fetchDay(),
-            fetchMonthDots(d.getFullYear(), d.getMonth() + 1),
-        ]);
+        if (!userId) throw new Error('No session');
+
+        // Optimistic
+        const tempId = 'temp-evt-' + Date.now();
+        const optimistic: AgendaEvent = {
+            id: tempId, user_id: userId,
+            title: params.title,
+            description: params.description ?? null,
+            event_date: params.event_date,
+            event_time: params.event_time ?? null,
+            color: params.color ?? '#6C63FF',
+            type: params.type ?? 'event',
+            completed: false,
+        };
+        if (params.event_date === dateStr) {
+            setAgenda((prev) => prev
+                ? { ...prev, events: [...prev.events, optimistic], hasContent: true }
+                : prev);
+        }
+
+        try {
+            const { error: err } = await supabase.from('agenda_events').insert({
+                user_id: userId, ...params,
+            });
+            if (err) throw err;
+            const d = new Date(params.event_date + 'T12:00:00');
+            await Promise.all([
+                fetchDay(),
+                fetchMonthDots(d.getFullYear(), d.getMonth() + 1),
+            ]);
+        } catch (e) {
+            await fetchDay();
+            throw e;
+        }
     };
 
     const toggleEvent = async (eventId: string, currentlyDone: boolean) => {
-        await supabase.from('agenda_events').update({ completed: !currentlyDone }).eq('id', eventId);
+        // Optimistic
         setAgenda((prev) => prev
-            ? {
-                ...prev, events: prev.events.map((e) =>
-                    e.id === eventId ? { ...e, completed: !currentlyDone } : e)
-            }
+            ? { ...prev, events: prev.events.map((e) => e.id === eventId ? { ...e, completed: !currentlyDone } : e) }
             : prev
         );
+        const { error } = await supabase.from('agenda_events').update({ completed: !currentlyDone }).eq('id', eventId);
+        if (error) await fetchDay();
     };
 
     const deleteEvent = async (eventId: string) => {
-        await supabase.from('agenda_events').delete().eq('id', eventId);
+        // Optimistic
         setAgenda((prev) => prev
             ? { ...prev, events: prev.events.filter((e) => e.id !== eventId) }
             : prev
         );
+        const { error } = await supabase.from('agenda_events').delete().eq('id', eventId);
+        if (error) await fetchDay();
     };
 
     /* ── Habit mutations ────────────────────────────────── */
 
     const toggleHabit = async (habitId: string, currentlyDone: boolean) => {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
+        if (!userId) return;
 
-        if (currentlyDone) {
-            await supabase.from('habit_logs').delete()
-                .eq('user_id', user.id).eq('habit_id', habitId).eq('log_date', dateStr);
-        } else {
-            await supabase.from('habit_logs').upsert({
-                user_id: user.id, habit_id: habitId, log_date: dateStr, completed: true,
-            });
-        }
-
+        // Optimistic
         setAgenda((prev) => prev
             ? {
                 ...prev, habits: prev.habits.map((h) =>
                     h.id === habitId
-                        ? { ...h, log: currentlyDone ? null : { id: '', user_id: user.id, habit_id: habitId, log_date: dateStr, completed: true, note: null } }
+                        ? { ...h, log: currentlyDone ? null : { id: 'temp', user_id: userId, habit_id: habitId, log_date: dateStr, completed: true, note: null } as any }
                         : h)
             }
             : prev
         );
+
+        try {
+            if (currentlyDone) {
+                await supabase.from('habit_logs').delete()
+                    .eq('user_id', userId).eq('habit_id', habitId).eq('log_date', dateStr);
+            } else {
+                await supabase.from('habit_logs').upsert({
+                    user_id: userId, habit_id: habitId, log_date: dateStr, completed: true,
+                });
+            }
+        } catch {
+            await fetchDay();
+        }
     };
 
     return {
-        agenda,
-        loading,
-        error,
-        eventDots,
-        objectiveDeadlines,
-        refresh: fetchDay,
-        fetchMonthDots,
-        createEvent,
-        toggleHabit,
-        toggleEvent,
-        deleteEvent,
+        agenda, loading, error,
+        eventDots, objectiveDeadlines,
+        refresh: fetchDay, fetchMonthDots,
+        createEvent, toggleHabit, toggleEvent, deleteEvent,
     };
 }

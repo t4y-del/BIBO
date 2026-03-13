@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../config/supabase';
+import { useAuth } from '../contexts/AuthContext';
 
 /* ── Types ──────────────────────────────────────────────── */
 
@@ -39,9 +40,29 @@ function toDateStr(d: Date): string {
     return `${y}-${m}-${dd}`;
 }
 
+/**
+ * Compute streaks from a pre-fetched array of completed log dates.
+ * Walks backward from today; streak breaks on first missing day.
+ */
+function computeStreak(completedDates: Set<string>): number {
+    let streak = 0;
+    const cursor = new Date();
+    while (true) {
+        const ds = toDateStr(cursor);
+        if (completedDates.has(ds)) {
+            streak++;
+            cursor.setDate(cursor.getDate() - 1);
+        } else {
+            break;
+        }
+    }
+    return streak;
+}
+
 /* ── Hook ───────────────────────────────────────────────── */
 
 export function useHabits(date: Date = new Date()) {
+    const userId = useAuth();
     const [habits, setHabits] = useState<HabitWithLog[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -49,62 +70,63 @@ export function useHabits(date: Date = new Date()) {
     const dateStr = toDateStr(date);
 
     const fetchHabits = useCallback(async () => {
+        if (!userId) { setLoading(false); return; }
         setLoading(true);
         setError(null);
         try {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) throw new Error('No autenticado');
+            // ── 3 queries in PARALLEL (was N+2 sequential before) ──
+            const [habitsRes, logsRes, allLogsRes] = await Promise.all([
+                // 1. All habits
+                supabase
+                    .from('habits')
+                    .select('*')
+                    .eq('user_id', userId)
+                    .order('created_at', { ascending: true }),
 
-            // Fetch habits
-            const { data: habitsData, error: habitsErr } = await supabase
-                .from('habits')
-                .select('*')
-                .eq('user_id', user.id)
-                .order('created_at', { ascending: true });
-
-            if (habitsErr) throw habitsErr;
-            if (!habitsData?.length) { setHabits([]); return; }
-
-            // Fetch logs for selected date
-            const { data: logsData, error: logsErr } = await supabase
-                .from('habit_logs')
-                .select('*')
-                .eq('user_id', user.id)
-                .eq('log_date', dateStr);
-
-            if (logsErr) throw logsErr;
-
-            // Build a map: habit_id → log
-            const logMap = new Map<string, HabitLog>();
-            (logsData ?? []).forEach((l) => logMap.set(l.habit_id, l));
-
-            // Compute streaks: count consecutive days completed up to today
-            const today = toDateStr(new Date());
-            const streakMap = new Map<string, number>();
-            for (const habit of habitsData) {
-                // Fetch last 90 days of logs for streak calc
-                const { data: streakLogs } = await supabase
+                // 2. Logs for the selected date
+                supabase
                     .from('habit_logs')
-                    .select('log_date, completed')
-                    .eq('habit_id', habit.id)
-                    .eq('completed', true)
-                    .order('log_date', { ascending: false })
-                    .limit(90);
+                    .select('*')
+                    .eq('user_id', userId)
+                    .eq('log_date', dateStr),
 
-                let streak = 0;
-                const logDates = new Set((streakLogs ?? []).map((l: any) => l.log_date));
-                const cursor = new Date();
-                // Start from today and walk back
-                while (true) {
-                    const ds = toDateStr(cursor);
-                    if (logDates.has(ds)) {
-                        streak++;
-                        cursor.setDate(cursor.getDate() - 1);
-                    } else {
-                        break;
+                // 3. ALL completed logs from last 90 days (single batch!)
+                supabase
+                    .from('habit_logs')
+                    .select('habit_id, log_date')
+                    .eq('user_id', userId)
+                    .eq('completed', true)
+                    .gte('log_date', toDateStr(new Date(Date.now() - 90 * 86400000)))
+                    .order('log_date', { ascending: false }),
+            ]);
+
+            if (habitsRes.error) throw habitsRes.error;
+            if (logsRes.error) throw logsRes.error;
+            // allLogsRes error is non-critical, just skip streaks
+
+            const habitsData = habitsRes.data ?? [];
+            if (!habitsData.length) { setHabits([]); return; }
+
+            // Build log map for selected date
+            const logMap = new Map<string, HabitLog>();
+            (logsRes.data ?? []).forEach((l) => logMap.set(l.habit_id, l));
+
+            // Build streak map from batch query (in-memory computation)
+            const streakMap = new Map<string, number>();
+            if (!allLogsRes.error && allLogsRes.data) {
+                // Group logs by habit_id
+                const logsByHabit = new Map<string, Set<string>>();
+                for (const log of allLogsRes.data) {
+                    if (!logsByHabit.has(log.habit_id)) {
+                        logsByHabit.set(log.habit_id, new Set());
                     }
+                    logsByHabit.get(log.habit_id)!.add(log.log_date);
                 }
-                streakMap.set(habit.id, streak);
+                // Compute streak for each habit
+                for (const habit of habitsData) {
+                    const dates = logsByHabit.get(habit.id) ?? new Set();
+                    streakMap.set(habit.id, computeStreak(dates));
+                }
             }
 
             const combined: HabitWithLog[] = habitsData.map((h) => ({
@@ -119,45 +141,50 @@ export function useHabits(date: Date = new Date()) {
         } finally {
             setLoading(false);
         }
-    }, [dateStr]);
+    }, [userId, dateStr]);
 
     useEffect(() => { fetchHabits(); }, [fetchHabits]);
 
     /* ── toggleHabit ─────────────────────────────────────── */
     const toggleHabit = useCallback(async (habitId: string, currentlyDone: boolean) => {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
+        if (!userId) return;
 
-        if (currentlyDone) {
-            // Remove log
-            await supabase
-                .from('habit_logs')
-                .delete()
-                .eq('habit_id', habitId)
-                .eq('log_date', dateStr)
-                .eq('user_id', user.id);
-        } else {
-            // Insert log
-            await supabase
-                .from('habit_logs')
-                .upsert({ habit_id: habitId, user_id: user.id, log_date: dateStr, completed: true });
-        }
-
-        // Optimistic update
+        // Optimistic update FIRST
         setHabits((prev) => prev.map((h) => {
             if (h.id !== habitId) return h;
             const newLog = currentlyDone
                 ? null
-                : { id: '', habit_id: habitId, log_date: dateStr, completed: true };
+                : { id: 'temp', habit_id: habitId, log_date: dateStr, completed: true };
             return { ...h, log: newLog, streak: currentlyDone ? Math.max(0, h.streak - 1) : h.streak + 1 };
         }));
-    }, [dateStr]);
+
+        // Then DB operation (fire-and-forget with error handling)
+        try {
+            if (currentlyDone) {
+                await supabase
+                    .from('habit_logs')
+                    .delete()
+                    .eq('habit_id', habitId)
+                    .eq('log_date', dateStr)
+                    .eq('user_id', userId);
+            } else {
+                await supabase
+                    .from('habit_logs')
+                    .upsert({ habit_id: habitId, user_id: userId, log_date: dateStr, completed: true });
+            }
+        } catch {
+            // Rollback on error
+            await fetchHabits();
+        }
+    }, [userId, dateStr, fetchHabits]);
 
     /* ── deleteHabit ─────────────────────────────────────── */
     const deleteHabit = useCallback(async (habitId: string) => {
-        await supabase.from('habits').delete().eq('id', habitId);
+        // Optimistic
         setHabits((prev) => prev.filter((h) => h.id !== habitId));
-    }, []);
+        const { error } = await supabase.from('habits').delete().eq('id', habitId);
+        if (error) await fetchHabits(); // rollback
+    }, [fetchHabits]);
 
     /* ── createHabit ────────────────────────────────────── */
     const createHabit = useCallback(async (params: {
@@ -167,30 +194,54 @@ export function useHabits(date: Date = new Date()) {
         frequency: string;
         active_days?: number[];
     }) => {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) throw new Error('No autenticado');
+        if (!userId) throw new Error('No autenticado');
 
-        const { error: insertErr } = await supabase.from('habits').insert({
-            user_id: user.id,
+        // Optimistic insert
+        const tempId = 'temp-' + Date.now();
+        const optimistic: HabitWithLog = {
+            id: tempId,
+            user_id: userId,
             name: params.name,
             icon: params.icon,
             color: params.color,
-            frequency: params.frequency,
-        });
+            frequency: params.frequency as 'daily' | 'weekly',
+            created_at: new Date().toISOString(),
+            log: null,
+            streak: 0,
+        };
+        setHabits((prev) => [...prev, optimistic]);
 
-        if (insertErr) throw insertErr;
-        await fetchHabits();
-    }, [fetchHabits]);
+        try {
+            const { error: insertErr } = await supabase.from('habits').insert({
+                user_id: userId,
+                name: params.name,
+                icon: params.icon,
+                color: params.color,
+                frequency: params.frequency,
+            });
+            if (insertErr) throw insertErr;
+            // Refresh to get real ID
+            await fetchHabits();
+        } catch (e) {
+            // Rollback
+            setHabits((prev) => prev.filter((h) => h.id !== tempId));
+            throw e;
+        }
+    }, [userId, fetchHabits]);
 
     /* ── updateHabit ────────────────────────────────────── */
     const updateHabit = useCallback(async (habitId: string, updates: Partial<Pick<Habit, 'name' | 'icon' | 'color' | 'frequency'>>) => {
+        // Optimistic
+        setHabits((prev) => prev.map((h) => (h.id === habitId ? { ...h, ...updates } : h)));
         const { error: err } = await supabase
             .from('habits')
             .update(updates)
             .eq('id', habitId);
-        if (err) throw err;
-        setHabits((prev) => prev.map((h) => (h.id === habitId ? { ...h, ...updates } : h)));
-    }, []);
+        if (err) {
+            await fetchHabits(); // rollback
+            throw err;
+        }
+    }, [fetchHabits]);
 
     /* ── Stats ───────────────────────────────────────────── */
     const stats: HabitStats = {

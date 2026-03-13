@@ -1,14 +1,12 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../config/supabase';
+import { useAuth } from '../contexts/AuthContext';
 
 export interface HomeStats {
-    // Objectives
     activeObjectives: number;
     totalObjectives: number;
-    // Habits
     habitsCompletedToday: number;
     totalHabitsToday: number;
-    // Streak (longest current streak across all habits)
     longestStreakToday: number;
 }
 
@@ -32,11 +30,10 @@ function addDays(d: Date, n: number) {
 }
 
 export function useHomeStats() {
+    const userId = useAuth();
     const [stats, setStats] = useState<HomeStats>({
-        activeObjectives: 0,
-        totalObjectives: 0,
-        habitsCompletedToday: 0,
-        totalHabitsToday: 0,
+        activeObjectives: 0, totalObjectives: 0,
+        habitsCompletedToday: 0, totalHabitsToday: 0,
         longestStreakToday: 0,
     });
     const [upcomingEvents, setUpcomingEvents] = useState<UpcomingEvent[]>([]);
@@ -44,35 +41,34 @@ export function useHomeStats() {
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
+        if (!userId) { setLoading(false); return; }
         let mounted = true;
+
         const fetchStats = async () => {
             try {
-                const { data: { user } } = await supabase.auth.getUser();
-                if (!user) return;
-
                 const today = toDateStr(new Date());
                 const in7Days = toDateStr(addDays(new Date(), 7));
 
+                // All queries in parallel — no getUser() call
                 const [objRes, habitRes, logRes, eventsRes] = await Promise.all([
                     supabase
                         .from('objectives')
                         .select('status', { count: 'exact' })
-                        .eq('user_id', user.id),
+                        .eq('user_id', userId),
                     supabase
                         .from('habits')
                         .select('id', { count: 'exact' })
-                        .eq('user_id', user.id)
+                        .eq('user_id', userId)
                         .eq('is_active', true),
                     supabase
                         .from('habit_logs')
                         .select('completed')
-                        .eq('user_id', user.id)
+                        .eq('user_id', userId)
                         .eq('log_date', today),
-                    // Next 7 days of events (not completed)
                     supabase
                         .from('agenda_events')
                         .select('id, title, description, event_date, event_time, color, type, completed')
-                        .eq('user_id', user.id)
+                        .eq('user_id', userId)
                         .eq('completed', false)
                         .gte('event_date', today)
                         .lte('event_date', in7Days)
@@ -84,21 +80,13 @@ export function useHomeStats() {
                 if (!mounted) return;
 
                 const objectives = objRes.data ?? [];
-                const activeObjectives = objectives.filter((o: any) => o.status === 'active').length;
-                const totalObjectives = objectives.length;
-
-                const totalHabitsToday = habitRes.count ?? 0;
-                const logs = logRes.data ?? [];
-                const habitsCompletedToday = logs.filter((l: any) => l.completed).length;
-
                 setStats({
-                    activeObjectives,
-                    totalObjectives,
-                    habitsCompletedToday,
-                    totalHabitsToday,
+                    activeObjectives: objectives.filter((o: any) => o.status === 'active').length,
+                    totalObjectives: objectives.length,
+                    totalHabitsToday: habitRes.count ?? 0,
+                    habitsCompletedToday: (logRes.data ?? []).filter((l: any) => l.completed).length,
                     longestStreakToday: 0,
                 });
-
                 setUpcomingEvents((eventsRes.data ?? []) as UpcomingEvent[]);
             } catch (e: any) {
                 if (mounted) setError(e.message);
@@ -109,7 +97,7 @@ export function useHomeStats() {
 
         fetchStats();
         return () => { mounted = false; };
-    }, []);
+    }, [userId]);
 
     return { stats, upcomingEvents, loading, error };
 }

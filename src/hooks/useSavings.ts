@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../config/supabase';
+import { useAuth } from '../contexts/AuthContext';
 
 /* ── Types ──────────────────────────────────────────────── */
 
@@ -7,7 +8,7 @@ export interface SavingsEntry {
     id: string;
     user_id: string;
     year: number;
-    month: number;   // 1-12
+    month: number;
     amount_ars: number;
     saved_at: string;
     note: string | null;
@@ -21,38 +22,37 @@ export interface SavingsGoal {
 }
 
 export interface SavingsStats {
-    totalArs: number;  // accumulated this year
-    monthsOk: number;  // months that met the monthly target
-    compliance: number;  // % months OK / months elapsed
+    totalArs: number;
+    monthsOk: number;
+    compliance: number;
     monthlyTarget: number;
 }
 
 /* ── Hook ───────────────────────────────────────────────── */
 
 export function useSavings(year: number = new Date().getFullYear()) {
+    const userId = useAuth();
     const [entries, setEntries] = useState<SavingsEntry[]>([]);
     const [goal, setGoal] = useState<SavingsGoal | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     const fetchAll = useCallback(async () => {
+        if (!userId) { setLoading(false); return; }
         setLoading(true);
         setError(null);
         try {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) throw new Error('No autenticado');
-
             const [entriesRes, goalRes] = await Promise.all([
                 supabase
                     .from('savings_entries')
                     .select('*')
-                    .eq('user_id', user.id)
+                    .eq('user_id', userId)
                     .eq('year', year)
                     .order('month', { ascending: true }),
                 supabase
                     .from('savings_goals')
                     .select('*')
-                    .eq('user_id', user.id)
+                    .eq('user_id', userId)
                     .eq('year', year)
                     .maybeSingle(),
             ]);
@@ -67,7 +67,7 @@ export function useSavings(year: number = new Date().getFullYear()) {
         } finally {
             setLoading(false);
         }
-    }, [year]);
+    }, [userId, year]);
 
     useEffect(() => { fetchAll(); }, [fetchAll]);
 
@@ -78,26 +78,39 @@ export function useSavings(year: number = new Date().getFullYear()) {
         saved_at: string;
         note?: string;
     }): Promise<string> => {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) throw new Error('No autenticado');
+        if (!userId) throw new Error('No autenticado');
 
-        const { data, error } = await supabase
-            .from('savings_entries')
-            .upsert({
-                user_id: user.id,
-                year,
-                month: params.month,
-                amount_ars: params.amount_ars,
-                saved_at: params.saved_at,
-                note: params.note ?? null,
-            }, { onConflict: 'user_id,year,month' })
-            .select('id')
-            .single();
+        // Optimistic
+        const tempId = 'temp-sav-' + Date.now();
+        const optimistic: SavingsEntry = {
+            id: tempId, user_id: userId, year,
+            month: params.month,
+            amount_ars: params.amount_ars,
+            saved_at: params.saved_at,
+            note: params.note ?? null,
+        };
+        setEntries((prev) => [...prev, optimistic].sort((a, b) => a.month - b.month));
 
-        if (error) throw error;
-        await fetchAll();
-        return data.id;
-    }, [year, fetchAll]);
+        try {
+            const { data, error } = await supabase
+                .from('savings_entries')
+                .upsert({
+                    user_id: userId, year,
+                    month: params.month,
+                    amount_ars: params.amount_ars,
+                    saved_at: params.saved_at,
+                    note: params.note ?? null,
+                }, { onConflict: 'user_id,year,month' })
+                .select('id')
+                .single();
+            if (error) throw error;
+            await fetchAll();
+            return data.id;
+        } catch (e) {
+            await fetchAll();
+            throw e;
+        }
+    }, [userId, year, fetchAll]);
 
     /* ── updateEntry ──────────────────────────────────────── */
     const updateEntry = useCallback(async (id: string, params: {
@@ -106,6 +119,12 @@ export function useSavings(year: number = new Date().getFullYear()) {
         saved_at: string;
         note?: string;
     }) => {
+        // Optimistic
+        setEntries((prev) => prev.map((e) => e.id === id ? {
+            ...e, month: params.month, amount_ars: params.amount_ars,
+            saved_at: params.saved_at, note: params.note ?? null,
+        } : e));
+
         const { error } = await supabase
             .from('savings_entries')
             .update({
@@ -115,36 +134,46 @@ export function useSavings(year: number = new Date().getFullYear()) {
                 note: params.note ?? null,
             })
             .eq('id', id);
-        if (error) throw error;
-        await fetchAll();
+        if (error) {
+            await fetchAll();
+            throw error;
+        }
     }, [fetchAll]);
 
     /* ── deleteEntry ──────────────────────────────────────── */
     const deleteEntry = useCallback(async (id: string) => {
-        const { error } = await supabase.from('savings_entries').delete().eq('id', id);
-        if (error) throw error;
+        // Optimistic
         setEntries((prev) => prev.filter((e) => e.id !== id));
-    }, []);
+        const { error } = await supabase.from('savings_entries').delete().eq('id', id);
+        if (error) await fetchAll();
+    }, [fetchAll]);
 
     /* ── saveGoal ─────────────────────────────────────────── */
     const saveGoal = useCallback(async (monthlyTarget: number) => {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) throw new Error('No autenticado');
+        if (!userId) throw new Error('No autenticado');
+
+        // Optimistic
+        setGoal((prev) => prev
+            ? { ...prev, monthly_target: monthlyTarget }
+            : { id: 'temp', user_id: userId, year, monthly_target: monthlyTarget }
+        );
 
         const { data, error } = await supabase
             .from('savings_goals')
-            .upsert({ user_id: user.id, year, monthly_target: monthlyTarget }, { onConflict: 'user_id,year' })
+            .upsert({ user_id: userId, year, monthly_target: monthlyTarget }, { onConflict: 'user_id,year' })
             .select()
             .single();
-
-        if (error) throw error;
+        if (error) {
+            await fetchAll();
+            throw error;
+        }
         setGoal(data as SavingsGoal);
-    }, [year]);
+    }, [userId, year, fetchAll]);
 
     /* ── Computed stats ───────────────────────────────────── */
     const monthlyTarget = goal?.monthly_target ?? 0;
     const totalArs = entries.reduce((s, e) => s + Number(e.amount_ars), 0);
-    const currentMonth = new Date().getMonth() + 1; // 1-indexed
+    const currentMonth = new Date().getMonth() + 1;
     const monthsElapsed = Math.min(currentMonth, 12);
     const monthsOk = entries.filter((e) => Number(e.amount_ars) >= monthlyTarget && monthlyTarget > 0).length;
     const compliance = monthsElapsed > 0 ? Math.round((monthsOk / monthsElapsed) * 100) : 0;

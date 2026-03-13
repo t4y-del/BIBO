@@ -9,6 +9,8 @@ import { useProfile } from '../hooks/useProfile';
 import { useHabits } from '../hooks/useHabits';
 import { useObjectives } from '../hooks/useObjectives';
 import { useHomeStats } from '../hooks/useHomeStats';
+import { useDolar } from '../hooks/useDolar';
+import { useBtcPrice } from '../hooks/useBtcPrice';
 
 const { width } = Dimensions.get('window');
 
@@ -16,12 +18,13 @@ interface Props {
     onNavigate?: (screen: string) => void;
 }
 
-/* ── Crypto prices remain static until Finanzas API is ready ── */
-const CRYPTO = [
-    { label: 'BTC', price: '$98.4K', change: '+2.3%', up: true, icon: 'logo-bitcoin' as const, color: '#F7931A' },
-    { label: 'USDT', price: '$1.00', change: '+0.01%', up: true, icon: 'swap-horizontal' as const, color: '#26A17B' },
-    { label: 'ETH', price: '$3,210', change: '-0.8%', up: false, icon: 'diamond-outline' as const, color: '#627EEA' },
-];
+/* ── Price display helper ── */
+function fmtPrice(n: number | undefined): string {
+    if (!n) return '…';
+    if (n >= 1_000_000) return '$' + (n / 1_000_000).toFixed(2) + 'M';
+    if (n >= 1000) return '$' + (n / 1000).toFixed(1) + 'K';
+    return '$' + n.toLocaleString('en-US', { maximumFractionDigits: 0 });
+}
 
 export default function HomeScreen({ onNavigate }: Props) {
     const today = new Date();
@@ -32,14 +35,22 @@ export default function HomeScreen({ onNavigate }: Props) {
     const { habits, loading: habitsLoading, refresh: refreshHabits, toggleHabit } = useHabits(today);
     const { objectives, loading: objLoading, refresh: refreshObj } = useObjectives('active');
     const { stats, upcomingEvents } = useHomeStats();
+    const { blue, oficial, refresh: refreshDolar } = useDolar();
+    const { price: btcPrice, refresh: refreshBtc } = useBtcPrice();
+
+    const MARKET_CARDS = [
+        { label: 'Dólar Blue', price: fmtPrice(blue?.venta), sub: blue ? `C: $${blue.compra}` : '', icon: '💵', color: '#4A9EFF' },
+        { label: 'BTC', price: fmtPrice(btcPrice?.usd), sub: 'USD', icon: '₿', color: '#F7931A' },
+        { label: 'Dólar Oficial', price: fmtPrice(oficial?.venta), sub: oficial ? `C: $${oficial.compra}` : '', icon: '🏦', color: '#2AC9A0' },
+    ];
 
     const [refreshing, setRefreshing] = useState(false);
 
     const onRefresh = useCallback(async () => {
         setRefreshing(true);
-        await Promise.all([refreshHabits(), refreshObj()]);
+        await Promise.all([refreshHabits(), refreshObj(), refreshDolar(), refreshBtc()]);
         setRefreshing(false);
-    }, [refreshHabits, refreshObj]);
+    }, [refreshHabits, refreshObj, refreshDolar, refreshBtc]);
 
     const firstName = profile?.display_name ?? profile?.full_name?.split(' ')[0] ?? '..';
     const habitPct = habits.length > 0
@@ -58,7 +69,7 @@ export default function HomeScreen({ onNavigate }: Props) {
                     <View style={{ flex: 1 }}>
                         <Text style={styles.dateText}>{capitalDate}</Text>
                         <Text style={styles.greeting}>Hola, {firstName} 👋</Text>
-                        <Text style={styles.subGreet}>Mercado crypto</Text>
+                        <Text style={styles.subGreet}>Mercado del día</Text>
                     </View>
                     <TouchableOpacity
                         style={styles.avatar}
@@ -69,19 +80,17 @@ export default function HomeScreen({ onNavigate }: Props) {
                     </TouchableOpacity>
                 </View>
 
-                {/* ── Crypto cards (static until Finanzas API) ── */}
+                {/* ── Market cards (live data) ── */}
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.cryptoScroll}>
                     <View style={styles.cryptoRow}>
-                        {CRYPTO.map((c) => (
+                        {MARKET_CARDS.map((c) => (
                             <View key={c.label} style={styles.cryptoCard}>
                                 <View style={[styles.cryptoIconWrap, { backgroundColor: c.color + '22' }]}>
-                                    <Ionicons name={c.icon} size={20} color={c.color} />
+                                    <Text style={{ fontSize: 18 }}>{c.icon}</Text>
                                 </View>
                                 <Text style={styles.cryptoLabel}>{c.label}</Text>
                                 <Text style={styles.cryptoPrice}>{c.price}</Text>
-                                <Text style={[styles.cryptoChange, { color: c.up ? '#4CAF50' : '#FF5252' }]}>
-                                    {c.up ? '▲' : '▼'} {c.change}
-                                </Text>
+                                <Text style={styles.cryptoChange}>{c.sub}</Text>
                             </View>
                         ))}
                     </View>

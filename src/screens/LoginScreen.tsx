@@ -11,6 +11,7 @@ import {
     ActivityIndicator,
 } from 'react-native';
 import { supabase } from '../config/supabase';
+import LaunchAnimation from '../components/LaunchAnimation';
 
 interface Props {
     onNavigate: (screen: string) => void;
@@ -22,6 +23,7 @@ export default function LoginScreen({ onNavigate }: Props) {
     const [showPass, setShowPass] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [launching, setLaunching] = useState(false);
 
     const handleLogin = async () => {
         setError(null);
@@ -35,7 +37,9 @@ export default function LoginScreen({ onNavigate }: Props) {
                 password,
             });
             if (signInError) throw signInError;
-            onNavigate('Home');
+            // Show launch animation, then navigate
+            setLoading(false);
+            setLaunching(true);
         } catch (e: any) {
             const msg = e?.message ?? 'Error al iniciar sesión';
             if (msg.includes('Invalid login credentials') || msg.includes('invalid_credentials')) {
@@ -51,119 +55,122 @@ export default function LoginScreen({ onNavigate }: Props) {
     };
 
     return (
-        <KeyboardAvoidingView
-            style={styles.container}
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        >
-            <ScrollView
-                contentContainerStyle={styles.scroll}
-                showsVerticalScrollIndicator={false}
-                keyboardShouldPersistTaps="handled"
+        <>
+            {launching && <LaunchAnimation onFinish={() => onNavigate('Home')} />}
+            <KeyboardAvoidingView
+                style={styles.container}
+                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
             >
-                {/* Header */}
-                <TouchableOpacity style={styles.backBtn} onPress={() => onNavigate('Welcome')}>
-                    <Text style={styles.backArrow}>←</Text>
-                    <Text style={styles.backText}>Volver</Text>
-                </TouchableOpacity>
-
-                {/* Brand */}
-                <Text style={styles.brand}>⚡ BIBO</Text>
-
-                {/* Heading */}
-                <Text style={styles.heading}>
-                    <Text style={styles.headingWhite}>Bienvenido{'\n'}de </Text>
-                    <Text style={styles.headingYellow}>vuelta </Text>
-                    <Text style={styles.headingEmoji}>👋</Text>
-                </Text>
-                <Text style={styles.subheading}>
-                    Iniciá sesión para retomar tus objetivos donde los dejaste.
-                </Text>
-
-                {/* Social buttons (placeholder) */}
-                <View style={styles.socialRow}>
-                    <TouchableOpacity style={styles.socialBtn} activeOpacity={0.7}>
-                        <Text style={styles.socialIcon}>G</Text>
-                        <Text style={styles.socialText}>Google</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.socialBtn} activeOpacity={0.7}>
-                        <Text style={styles.socialIcon}></Text>
-                        <Text style={styles.socialText}>Apple</Text>
-                    </TouchableOpacity>
-                </View>
-
-                {/* Divider */}
-                <View style={styles.divider}>
-                    <View style={styles.dividerLine} />
-                    <Text style={styles.dividerText}>O CON EMAIL</Text>
-                    <View style={styles.dividerLine} />
-                </View>
-
-                {/* Email */}
-                <Text style={styles.label}>EMAIL</Text>
-                <View style={styles.inputWrap}>
-                    <Text style={styles.inputIcon}>✉️</Text>
-                    <TextInput
-                        style={styles.input}
-                        value={email}
-                        onChangeText={setEmail}
-                        placeholder="tu@email.com"
-                        placeholderTextColor="#555"
-                        keyboardType="email-address"
-                        autoCapitalize="none"
-                        autoCorrect={false}
-                    />
-                </View>
-
-                {/* Password */}
-                <Text style={styles.label}>CONTRASEÑA</Text>
-                <View style={styles.inputWrap}>
-                    <Text style={styles.inputIcon}>🔒</Text>
-                    <TextInput
-                        style={styles.input}
-                        value={password}
-                        onChangeText={setPassword}
-                        placeholder="••••••••"
-                        placeholderTextColor="#555"
-                        secureTextEntry={!showPass}
-                    />
-                    <TouchableOpacity onPress={() => setShowPass(!showPass)}>
-                        <Text style={styles.eyeIcon}>{showPass ? '🙈' : '👁️'}</Text>
-                    </TouchableOpacity>
-                </View>
-
-                {/* Forgot */}
-                <TouchableOpacity style={styles.forgotRow}>
-                    <Text style={styles.forgotText}>¿Olvidaste tu contraseña?</Text>
-                </TouchableOpacity>
-
-                {/* Error */}
-                {error && (
-                    <View style={styles.errorBox}>
-                        <Text style={styles.errorText}>⚠️ {error}</Text>
-                    </View>
-                )}
-
-                {/* Login button */}
-                <TouchableOpacity
-                    style={[styles.loginBtn, loading && { opacity: 0.6 }]}
-                    activeOpacity={0.8}
-                    onPress={handleLogin}
-                    disabled={loading}
+                <ScrollView
+                    contentContainerStyle={styles.scroll}
+                    showsVerticalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
                 >
-                    {loading
-                        ? <ActivityIndicator color="#FFF" />
-                        : <Text style={styles.loginBtnText}>Iniciar sesión</Text>}
-                </TouchableOpacity>
-
-                {/* Footer */}
-                <View style={styles.footer}>
-                    <Text style={styles.footerText}>¿No tenés cuenta? </Text>
-                    <TouchableOpacity onPress={() => onNavigate('Register')}>
-                        <Text style={styles.footerLink}>Registrate</Text>
+                    {/* Header */}
+                    <TouchableOpacity style={styles.backBtn} onPress={() => onNavigate('Welcome')}>
+                        <Text style={styles.backArrow}>←</Text>
+                        <Text style={styles.backText}>Volver</Text>
                     </TouchableOpacity>
-                </View>
-            </ScrollView>
-        </KeyboardAvoidingView>
+
+                    {/* Brand */}
+                    <Text style={styles.brand}>⚡ BIBO</Text>
+
+                    {/* Heading */}
+                    <Text style={styles.heading}>
+                        <Text style={styles.headingWhite}>Bienvenido{'\n'}de </Text>
+                        <Text style={styles.headingYellow}>vuelta </Text>
+                        <Text style={styles.headingEmoji}>👋</Text>
+                    </Text>
+                    <Text style={styles.subheading}>
+                        Iniciá sesión para retomar tus objetivos donde los dejaste.
+                    </Text>
+
+                    {/* Social buttons (placeholder) */}
+                    <View style={styles.socialRow}>
+                        <TouchableOpacity style={styles.socialBtn} activeOpacity={0.7}>
+                            <Text style={styles.socialIcon}>G</Text>
+                            <Text style={styles.socialText}>Google</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.socialBtn} activeOpacity={0.7}>
+                            <Text style={styles.socialIcon}></Text>
+                            <Text style={styles.socialText}>Apple</Text>
+                        </TouchableOpacity>
+                    </View>
+
+                    {/* Divider */}
+                    <View style={styles.divider}>
+                        <View style={styles.dividerLine} />
+                        <Text style={styles.dividerText}>O CON EMAIL</Text>
+                        <View style={styles.dividerLine} />
+                    </View>
+
+                    {/* Email */}
+                    <Text style={styles.label}>EMAIL</Text>
+                    <View style={styles.inputWrap}>
+                        <Text style={styles.inputIcon}>✉️</Text>
+                        <TextInput
+                            style={styles.input}
+                            value={email}
+                            onChangeText={setEmail}
+                            placeholder="tu@email.com"
+                            placeholderTextColor="#555"
+                            keyboardType="email-address"
+                            autoCapitalize="none"
+                            autoCorrect={false}
+                        />
+                    </View>
+
+                    {/* Password */}
+                    <Text style={styles.label}>CONTRASEÑA</Text>
+                    <View style={styles.inputWrap}>
+                        <Text style={styles.inputIcon}>🔒</Text>
+                        <TextInput
+                            style={styles.input}
+                            value={password}
+                            onChangeText={setPassword}
+                            placeholder="••••••••"
+                            placeholderTextColor="#555"
+                            secureTextEntry={!showPass}
+                        />
+                        <TouchableOpacity onPress={() => setShowPass(!showPass)}>
+                            <Text style={styles.eyeIcon}>{showPass ? '🙈' : '👁️'}</Text>
+                        </TouchableOpacity>
+                    </View>
+
+                    {/* Forgot */}
+                    <TouchableOpacity style={styles.forgotRow}>
+                        <Text style={styles.forgotText}>¿Olvidaste tu contraseña?</Text>
+                    </TouchableOpacity>
+
+                    {/* Error */}
+                    {error && (
+                        <View style={styles.errorBox}>
+                            <Text style={styles.errorText}>⚠️ {error}</Text>
+                        </View>
+                    )}
+
+                    {/* Login button */}
+                    <TouchableOpacity
+                        style={[styles.loginBtn, loading && { opacity: 0.6 }]}
+                        activeOpacity={0.8}
+                        onPress={handleLogin}
+                        disabled={loading}
+                    >
+                        {loading
+                            ? <ActivityIndicator color="#FFF" />
+                            : <Text style={styles.loginBtnText}>Iniciar sesión</Text>}
+                    </TouchableOpacity>
+
+                    {/* Footer */}
+                    <View style={styles.footer}>
+                        <Text style={styles.footerText}>¿No tenés cuenta? </Text>
+                        <TouchableOpacity onPress={() => onNavigate('Register')}>
+                            <Text style={styles.footerLink}>Registrate</Text>
+                        </TouchableOpacity>
+                    </View>
+                </ScrollView>
+            </KeyboardAvoidingView>
+        </>
     );
 }
 

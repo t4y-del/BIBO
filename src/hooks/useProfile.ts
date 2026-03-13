@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../config/supabase';
+import { useAuth } from '../contexts/AuthContext';
 
 export interface Profile {
     id: string;
@@ -11,52 +12,47 @@ export interface Profile {
 }
 
 export function useProfile() {
+    const userId = useAuth();
     const [profile, setProfile] = useState<Profile | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    useEffect(() => {
-        let mounted = true;
+    const fetchProfile = useCallback(async () => {
+        if (!userId) { setLoading(false); return; }
+        try {
+            const { data, error: err } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', userId)
+                .single();
+            if (err) throw err;
+            setProfile(data);
+        } catch (e: any) {
+            setError(e.message);
+        } finally {
+            setLoading(false);
+        }
+    }, [userId]);
 
-        const fetchProfile = async () => {
-            try {
-                const { data: { user } } = await supabase.auth.getUser();
-                if (!user) return;
-
-                const { data, error: err } = await supabase
-                    .from('profiles')
-                    .select('*')
-                    .eq('id', user.id)
-                    .single();
-
-                if (err) throw err;
-                if (mounted) setProfile(data);
-            } catch (e: any) {
-                if (mounted) setError(e.message);
-            } finally {
-                if (mounted) setLoading(false);
-            }
-        };
-
-        fetchProfile();
-        return () => { mounted = false; };
-    }, []);
+    useEffect(() => { fetchProfile(); }, [fetchProfile]);
 
     const updateProfile = async (updates: Partial<Omit<Profile, 'id' | 'created_at'>>) => {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) throw new Error('No session');
-
+        if (!userId) throw new Error('No session');
+        // Optimistic
+        setProfile((prev) => prev ? { ...prev, ...updates } : prev);
         const { data, error: err } = await supabase
             .from('profiles')
             .update({ ...updates, updated_at: new Date().toISOString() })
-            .eq('id', user.id)
+            .eq('id', userId)
             .select()
             .single();
-
-        if (err) throw err;
+        if (err) {
+            await fetchProfile(); // rollback
+            throw err;
+        }
         setProfile(data);
         return data;
     };
 
-    return { profile, loading, error, updateProfile };
+    return { profile, loading, error, updateProfile, refresh: fetchProfile };
 }

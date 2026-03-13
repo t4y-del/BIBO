@@ -14,13 +14,14 @@ import AddPurchaseModal from '../components/AddPurchaseModal';
 import SwipeablePurchaseCard from '../components/SwipeablePurchaseCard';
 import SwipeableSavingsCard from '../components/SwipeableSavingsCard';
 import AddSavingsModal from '../components/AddSavingsModal';
+import DCASection from '../components/DCASection';
 import { LineChart } from 'react-native-gifted-charts';
 
 const { width } = Dimensions.get('window');
 const CHART_W = width - 36 - 32;
 const CHART_H = 90;
 
-type Tab = 'BTC' | 'Ahorros' | 'Resumen';
+type Tab = 'BTC' | 'Ahorros' | 'DCA';
 
 /* ── Currency display helpers ───────────────────────────── */
 
@@ -58,7 +59,7 @@ function fmtDate(d: string) {
 export default function FinanzasScreen() {
     const [tab, setTab] = useState<Tab>('BTC');
     const now = new Date();
-    const glowVariant = tab === 'BTC' ? 'btc' : tab === 'Ahorros' ? 'savings' : 'default';
+    const glowVariant = tab === 'BTC' ? 'btc' : tab === 'Ahorros' ? 'savings' : 'btc';
 
     return (
         <GlowBackground variant={glowVariant}>
@@ -75,7 +76,7 @@ export default function FinanzasScreen() {
 
                 {/* Tab switcher */}
                 <View style={styles.tabBar}>
-                    {(['BTC', 'Ahorros', 'Resumen'] as Tab[]).map((t) => (
+                    {(['BTC', 'Ahorros', 'DCA'] as Tab[]).map((t) => (
                         <TouchableOpacity
                             key={t}
                             style={[styles.tabBtn, tab === t && styles.tabBtnActive]}
@@ -88,7 +89,7 @@ export default function FinanzasScreen() {
 
                 {tab === 'BTC' && <BTCSection />}
                 {tab === 'Ahorros' && <AhorrosSection />}
-                {tab === 'Resumen' && <ResumenSection />}
+                {tab === 'DCA' && <DCASection />}
             </ScrollView>
         </GlowBackground>
     );
@@ -229,24 +230,18 @@ function BTCSection() {
             </View>
 
             <View style={styles.chartCard}>
-                {/* Currency selector */}
+                {/* Currency switch ARS/USD */}
                 <View style={styles.currencyTabRow}>
-                    {CURRENCIES.map((c) => (
-                        <TouchableOpacity
-                            key={c.key}
-                            style={[
-                                styles.currencyTab,
-                                priceCurrency === c.key && { backgroundColor: c.color + '22', borderColor: c.color },
-                            ]}
-                            onPress={() => setPriceCurrency(c.key)}
-                        >
-                            <Text style={styles.currencyTabIcon}>{c.icon}</Text>
-                            <Text style={[
-                                styles.currencyTabLabel,
-                                priceCurrency === c.key && { color: c.color, fontWeight: '700' },
-                            ]}>{c.label}</Text>
-                        </TouchableOpacity>
-                    ))}
+                    <TouchableOpacity
+                        style={styles.portfolioCurrencyToggle}
+                        onPress={() => setPriceCurrency((c) => c === 'usd' ? 'ars' : 'usd')}
+                    >
+                        <Text style={styles.portfolioCurrencyToggleIcon}>
+                            {priceCurrency === 'ars' ? '🇦🇷' : '🇺🇸'}
+                        </Text>
+                        <Text style={styles.portfolioCurrencyToggleLabel}>{priceCurrency.toUpperCase()}</Text>
+                        <Ionicons name="swap-horizontal" size={12} color="#8E8E93" />
+                    </TouchableOpacity>
                 </View>
 
                 {priceLoading
